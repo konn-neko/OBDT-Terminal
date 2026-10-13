@@ -1,0 +1,16 @@
+[Unit]
+Description=Obsidian Directorate Terminal
+After=network.target
+
+[Service]
+Type=simple
+User=obsidian
+WorkingDirectory=/opt/obsidian-directorate
+ExecStart=/usr/bin/node /opt/obsidian-directorate/server.js
+Restart=always
+RestartSec=5
+Environment=PORT=8080
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

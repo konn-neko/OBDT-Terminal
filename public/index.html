@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian Directorate Terminal</title>
+<style>
+/* ============ OBSIDIAN DIRECTORATE // BLUE HUD TERMINAL ============ */
+:root{
+  --bg0:#03080f; --bg1:#06121f; --bg2:#0a1c33; --bg3:#0e2540;
+  --line:#123a5e; --line-bright:#1e5a8f;
+  --cyan:#46c8ff; --cyan-dim:#1e7fae; --cyan-bright:#aee7ff;
+  --text:#c9e8ff; --muted:#5f87a8; --faint:#33506b;
+  --green:#4fe08a; --amber:#ffb454; --orange:#ff8a4d; --red:#ff5470;
+  --mono:"Cascadia Code","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg0); color:var(--text); font-family:var(--mono);
+  font-size:14px; line-height:1.5; overflow-x:hidden;
+  background-image:radial-gradient(ellipse at 50% -10%, #0a2038 0%, var(--bg0) 60%);
+}
+/* scanlines + vignette overlays */
+#fx-scanlines{position:fixed;inset:0;pointer-events:none;z-index:9990;opacity:.5;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);}
+#fx-vignette{position:fixed;inset:0;pointer-events:none;z-index:9989;
+  background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%);}
+#fx-sweep{position:fixed;left:0;right:0;height:120px;pointer-events:none;z-index:9988;opacity:.10;
+  background:linear-gradient(180deg,transparent,var(--cyan),transparent);
+  animation:sweep 9s linear infinite;}
+@keyframes sweep{0%{top:-15%}100%{top:110%}}
+
+.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+[hidden]{display:none !important}
+
+/* ---------- boot gate ---------- */
+#screen-boot-gate{cursor:pointer;user-select:none;text-align:center}
+.gate-frame{border:1px solid var(--line-bright);padding:48px 64px;background:rgba(6,18,31,.85);
+  box-shadow:0 0 40px rgba(70,200,255,.12), inset 0 0 60px rgba(70,200,255,.04);position:relative}
+.gate-frame::before,.gate-frame::after{content:"";position:absolute;width:22px;height:22px;border:2px solid var(--cyan)}
+.gate-frame::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.gate-frame::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.gate-title{font-size:13px;letter-spacing:6px;color:var(--muted)}
+.gate-big{font-size:34px;letter-spacing:10px;color:var(--cyan-bright);margin:14px 0;
+  text-shadow:0 0 18px rgba(70,200,255,.8)}
+.gate-sub{color:var(--cyan);letter-spacing:3px;animation:blink 1.6s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---------- boot sequence ---------- */
+#screen-boot{align-items:stretch;max-width:900px;margin:0 auto;width:100%}
+.boot-shell{border:1px solid var(--line-bright);background:rgba(4,12,22,.92);min-height:60vh;
+  box-shadow:0 0 50px rgba(70,200,255,.10);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.boot-rings{position:absolute;top:26px;right:30px;width:120px;height:120px;opacity:.7}
+.ring{position:absolute;inset:0;border:1px dashed var(--cyan-dim);border-radius:50%}
+.ring.r1{animation:spin 14s linear infinite}
+.ring.r2{inset:18px;border-style:solid;border-color:var(--faint);animation:spin 22s linear infinite reverse}
+.ring.r3{inset:38px;border-style:dotted;animation:spin 9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#boot-log{flex:1;padding:28px;font-size:13px;white-space:pre-wrap;color:var(--text);overflow:hidden}
+#boot-log .ok{color:var(--green)} #boot-log .warn{color:var(--amber)} #boot-log .dim{color:var(--muted)}
+.boot-bar-wrap{margin:0 28px 8px;border:1px solid var(--line-bright);height:22px;position:relative;background:#04101d}
+#boot-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));
+  box-shadow:0 0 14px rgba(70,200,255,.7);transition:width .25s}
+#boot-pct{position:absolute;right:8px;top:1px;font-size:12px;color:var(--cyan-bright)}
+.boot-foot{display:flex;justify-content:space-between;align-items:center;padding:10px 28px 20px}
+
+/* ---------- buttons ---------- */
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:2px;text-transform:uppercase;
+  background:transparent;color:var(--cyan);border:1px solid var(--cyan-dim);
+  padding:10px 20px;cursor:pointer;transition:all .18s;position:relative}
+.btn:hover{background:rgba(70,200,255,.12);border-color:var(--cyan);box-shadow:0 0 16px rgba(70,200,255,.35);color:var(--cyan-bright)}
+.btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.btn.primary{background:rgba(70,200,255,.14);border-color:var(--cyan)}
+.btn.danger{color:var(--red);border-color:#7a2c3d}
+.btn.danger:hover{background:rgba(255,84,112,.12);border-color:var(--red);box-shadow:0 0 16px rgba(255,84,112,.3)}
+.btn.small{padding:6px 12px;font-size:11px}
+
+/* ---------- access screen ---------- */
+.stamp{border:3px double var(--cyan);padding:10px 26px;transform:rotate(-2deg);
+  color:var(--cyan-bright);letter-spacing:6px;font-size:15px;text-align:center;
+  text-shadow:0 0 14px rgba(70,200,255,.7);box-shadow:0 0 24px rgba(70,200,255,.18), inset 0 0 24px rgba(70,200,255,.06);
+  background:rgba(70,200,255,.04);margin-bottom:26px}
+.panel{border:1px solid var(--line-bright);background:rgba(6,18,31,.9);padding:28px;width:100%;max-width:460px;
+  box-shadow:0 0 40px rgba(70,200,255,.10);position:relative}
+.panel::before,.panel::after{content:"";position:absolute;width:18px;height:18px;border:2px solid var(--cyan)}
+.panel::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.panel::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.panel h2{font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;letter-spacing:3px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+input[type=text],input[type=password],textarea{
+  width:100%;font-family:var(--mono);font-size:14px;color:var(--cyan-bright);
+  background:#04101d;border:1px solid var(--line-bright);padding:10px 12px;outline:none;transition:all .18s}
+input:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 12px rgba(70,200,255,.35)}
+textarea{min-height:180px;resize:vertical;line-height:1.6}
+.linklike{background:none;border:none;color:var(--cyan-dim);font-family:var(--mono);font-size:12px;
+  letter-spacing:1px;cursor:pointer;text-decoration:underline;margin-top:12px}
+.linklike:hover{color:var(--cyan)}
+.err{color:var(--red);font-size:12px;min-height:18px;margin:8px 0;letter-spacing:1px}
+.divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--faint);font-size:11px;letter-spacing:3px}
+.divider::before,.divider::after{content:"";flex:1;border-top:1px solid var(--line)}
+
+/* ---------- app shell ---------- */
+#screen-app{display:block;min-height:100vh;padding:0;align-items:stretch;justify-content:flex-start}
+.topbar{display:flex;align-items:center;gap:16px;padding:12px 24px;border-bottom:1px solid var(--line-bright);
+  background:rgba(6,18,31,.95);position:sticky;top:0;z-index:50}
+.topbar .mini-stamp{border:2px double var(--cyan-dim);padding:4px 14px;color:var(--cyan-bright);
+  letter-spacing:4px;font-size:12px;transform:rotate(-1deg);white-space:nowrap}
+.topbar .who{margin-left:auto;color:var(--muted);font-size:12px;letter-spacing:1px}
+.topbar .who b{color:var(--cyan)}
+nav.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);background:rgba(4,12,22,.9);
+  position:sticky;top:57px;z-index:49;overflow-x:auto}
+nav.tabs button{font-family:var(--mono);font-size:12px;letter-spacing:3px;text-transform:uppercase;
+  background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);
+  padding:14px 18px;cursor:pointer;white-space:nowrap}
+nav.tabs button:hover{color:var(--cyan)}
+nav.tabs button.active{color:var(--cyan-bright);border-bottom-color:var(--cyan);text-shadow:0 0 10px rgba(70,200,255,.6)}
+main{max-width:1100px;margin:0 auto;padding:28px 24px 80px;width:100%}
+.view{animation:viewin .28s ease}
+@keyframes viewin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ---------- custom dropdowns (div-based: Firefox-safe) ---------- */
+.dd{position:relative;width:100%}
+.dd-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-family:var(--mono);font-size:14px;color:var(--cyan-bright);background:#04101d;
+  border:1px solid var(--line-bright);padding:10px 12px;cursor:pointer;transition:all .18s;text-align:left}
+.dd-btn:hover,.dd.open .dd-btn{border-color:var(--cyan);box-shadow:0 0 12px rgba(70,200,255,.35)}
+.dd-btn .ph{color:var(--faint)}
+.dd-chev{color:var(--cyan);font-size:12px;transition:transform .18s;flex:none}
+.dd.open .dd-chev{transform:rotate(180deg)}
+.dd-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:200;max-height:260px;overflow-y:auto;
+  background:#061525;border:1px solid var(--cyan);box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 18px rgba(70,200,255,.25)}
+.dd-opt{padding:10px 12px;cursor:pointer;color:var(--text);font-size:13px;letter-spacing:1px;border-left:2px solid transparent}
+.dd-opt:hover,.dd-opt.hl{background:rgba(70,200,255,.14);border-left-color:var(--cyan);color:var(--cyan-bright)}
+.dd-opt.sel{color:var(--cyan-bright)}
+.dd.disabled{opacity:.4;pointer-events:none}
+
+/* ---------- archive ---------- */
+.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.filters .f{flex:1;min-width:180px}
+.filters .f.grow{flex:2;min-width:240px}
+.rep-card{border:1px solid var(--line);border-left:3px solid var(--cyan-dim);background:rgba(8,22,38,.75);
+  padding:14px 18px;margin-bottom:12px;cursor:pointer;transition:all .18s}
+.rep-card:hover{border-color:var(--cyan);border-left-color:var(--cyan);background:rgba(10,28,51,.9);
+  box-shadow:0 0 18px rgba(70,200,255,.18);transform:translateX(4px)}
+.rep-card .t{color:var(--cyan-bright);font-size:15px;letter-spacing:1px;margin-bottom:4px}
+.rep-card .m{color:var(--muted);font-size:12px;letter-spacing:1px}
+.cls{display:inline-block;font-size:10px;letter-spacing:2px;padding:2px 10px;border:1px solid;margin-right:8px}
+.cls.UNCLASSIFIED{color:var(--green);border-color:var(--green)}
+.cls.RESTRICTED{color:var(--cyan);border-color:var(--cyan-dim)}
+.cls.CONFIDENTIAL{color:var(--amber);border-color:var(--amber)}
+.cls.SECRET{color:var(--orange);border-color:var(--orange)}
+.cls.TOP.SECRET,.cls.TOP-SECRET{color:var(--red);border-color:var(--red)}
+.empty{color:var(--faint);letter-spacing:2px;text-align:center;padding:60px 20px;border:1px dashed var(--line)}
+
+/* ---------- report detail ---------- */
+.detail{border:1px solid var(--line-bright);background:rgba(6,18,31,.92)}
+.detail-banner{padding:12px 20px;letter-spacing:4px;font-size:13px;border-bottom:1px solid var(--line-bright);text-align:center}
+.detail-body{padding:24px}
+.detail h1{font-size:22px;color:var(--cyan-bright);letter-spacing:2px;margin:6px 0 16px;font-weight:normal}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:20px}
+.meta div{border:1px solid var(--line);padding:8px 12px;background:rgba(4,12,22,.6)}
+.meta .k{font-size:10px;letter-spacing:3px;color:var(--muted)}
+.meta .v{color:var(--text);font-size:13px}
+.report-text{white-space:pre-wrap;border:1px solid var(--line);padding:18px;background:#030a14;
+  color:var(--text);line-height:1.7;margin-bottom:20px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- admin tables ---------- */
+table.grid{width:100%;border-collapse:collapse;font-size:13px}
+table.grid th{text-align:left;font-size:11px;letter-spacing:3px;color:var(--muted);font-weight:normal;
+  padding:10px;border-bottom:1px solid var(--line-bright)}
+table.grid td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.grid tr:hover td{background:rgba(70,200,255,.05)}
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:14px 0}
+.perm{display:flex;align-items:center;gap:10px;border:1px solid var(--line);padding:8px 12px;cursor:pointer;font-size:12px}
+.perm:hover{border-color:var(--cyan-dim)}
+.perm input{accent-color:var(--cyan);width:16px;height:16px;cursor:pointer}
+.role-card{border:1px solid var(--line-bright);background:rgba(8,22,38,.75);padding:18px;margin-bottom:14px}
+.role-card h3{color:var(--cyan-bright);letter-spacing:2px;font-weight:normal;margin-bottom:6px}
+.rowline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);z-index:9999;
+  background:#061525;border:1px solid var(--cyan);color:var(--cyan-bright);padding:12px 24px;
+  letter-spacing:2px;font-size:13px;opacity:0;pointer-events:none;transition:all .25s;
+  box-shadow:0 0 24px rgba(70,200,255,.3);max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:var(--red);color:#ffb3c1;box-shadow:0 0 24px rgba(255,84,112,.3)}
+
+@media (max-width:640px){
+  .gate-frame{padding:32px 24px}
+  .gate-big{font-size:22px;letter-spacing:6px}
+  .panel{padding:20px}
+  main{padding:20px 14px 60px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<div id="fx-vignette"></div>
+<div id="fx-sweep"></div>
+<div id="fx-scanlines"></div>
+
+<!-- BOOT GATE: required interaction before anything loads -->
+<div id="screen-boot-gate" class="screen">
+  <div class="gate-frame">
+    <div class="gate-title">OBSIDIAN DIRECTORATE // SETTLEMENT DATA TERMINAL</div>
+    <div class="gate-big">RESTRICTED ACCESS</div>
+    <div class="gate-sub">[ CLICK TO INITIALIZE ]</div>
+  </div>
+</div>
+
+<!-- BOOT SEQUENCE -->
+<div id="screen-boot" class="screen" hidden>
+  <div class="boot-shell">
+    <div class="boot-rings"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div></div>
+    <div id="boot-log"></div>
+    <div class="boot-bar-wrap"><div id="boot-bar"></div><span id="boot-pct">0%</span></div>
+    <div class="boot-foot">
+      <span style="font-size:11px;letter-spacing:3px;color:var(--faint)">OD-TERMINAL v2.4 // COLD BOOT</span>
+      <button class="btn small" id="btn-skip-boot">Skip [ESC]</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCESS SCREEN -->
+<div id="screen-access" class="screen" hidden>
+  <div class="stamp">THE OBSIDIAN DIRECTORATE</div>
+  <div class="panel">
+    <div id="pane-login">
+      <h2>// CLEARANCE CHECK</h2>
+      <div class="field"><label>Callsign</label><input type="text" id="login-user" autocomplete="username" spellcheck="false"></div>
+      <div class="field"><label>Passphrase</label><input type="password" id="login-pass" autocomplete="current-password"></div>
+      <div class="err" id="login-err"></div>
+      <button class="btn primary" id="btn-login" style="width:100%">Authenticate</button>
+      <div style="text-align:center"><button class="linklike" id="link-register">No clearance? Request an account</button></div>
+      <div class="divider">OR</div>
+      <button class="btn" id="btn-guest" style="width:100%">Enter as Guest</button>
+      <div style="text-align:center;color:var(--faint);font-size:11px;margin-top:10px;letter-spacing:1px">
+        Guests may read declassified transmissions only.
+      </div>
+    </div>
+    <div id="pane-register" hidden>
+      <h2>// ACCOUNT REQUEST</h2>
+      <div class="field"><label>Callsign</label><input type="text" id="reg-user" autocomplete="username" spellcheck="false"></div>
+      <div class="field"><label>CMDR Name (optional)</label><input type="text" id="reg-cmdr" spellcheck="false"></div>
+      <div class="field"><label>Passphrase (min 8 chars)</label><input type="password" id="reg-pass" autocomplete="new-password"></div>
+      <div class="err" id="reg-err"></div>
+      <button class="btn primary" id="btn-register" style="width:100%">Submit Request</button>
+      <div style="text-align:center"><button class="linklike" id="link-login">Back to sign-in</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-app" class="screen" hidden>
+  <div class="topbar">
+    <div class="mini-stamp">OBSIDIAN DIRECTORATE</div>
+    <div class="who" id="who-line"></div>
+    <button class="btn small" id="btn-logout">Logout</button>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+  <main>
+    <!-- ARCHIVE -->
+    <section id="view-archive" class="view" hidden>
+      <div class="filters">
+        <div class="f grow"><label class="field"><span style="font-size:11px;letter-spacing:3px;color:var(--muted)">SEARCH</span></label>
+          <input type="text" id="flt-q" placeholder="title, CMDR, contents..."></div>
+        <div class="f"><label class="field"><span style="font-size:11px;letter-spacing:3px;color:var(--muted)">TYPE</span></label>
+          <div class="dd" id="dd-flt-type"></div></div>
+        <div class="f"><label class="field"><span style="font-size:11px;letter-spacing:3px;color:var(--muted)">CLASSIFICATION</span></label>
+          <div class="dd" id="dd-flt-cls"></div></div>
+      </div>
+      <div id="archive-list"></div>
+    </section>
+
+    <!-- REPORT DETAIL -->
+    <section id="view-detail" class="view" hidden>
+      <button class="btn small" id="btn-back-archive" style="margin-bottom:16px">&larr; Archive</button>
+      <div class="detail">
+        <div class="detail-banner" id="det-banner"></div>
+        <div class="detail-body">
+          <div id="det-cls"></div>
+          <h1 id="det-title"></h1>
+          <div class="meta" id="det-meta"></div>
+          <div class="report-text" id="det-body"></div>
+          <div class="actions">
+            <button class="btn small" id="btn-copy-discord">Copy for Discord</button>
+            <button class="btn small" id="btn-copy-inara">Copy for Inara</button>
+            <button class="btn small" id="btn-edit-report" hidden>Revise</button>
+            <button class="btn small danger" id="btn-del-report" hidden>Purge</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEW / EDIT REPORT -->
+    <section id="view-edit" class="view" hidden>
+      <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal" id="edit-heading">// NEW TRANSMISSION</h2>
+      <div class="field"><label>Reporting CMDR</label><input type="text" id="rep-cmdr" spellcheck="false" maxlength="64"></div>
+      <div class="field"><label>Report Title</label><input type="text" id="rep-title" spellcheck="false" maxlength="200"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:200px"><label>Report Classification</label><div class="dd" id="dd-rep-cls"></div></div>
+        <div class="field" style="flex:1;min-width:200px"><label>Report Type</label><div class="dd" id="dd-rep-type"></div></div>
+      </div>
+      <div class="field" id="wrap-subtype" hidden><label>Intelligence Subtype</label><div class="dd" id="dd-rep-sub"></div></div>
+      <div class="field" id="wrap-recipient" hidden><label>Recipient Party</label><input type="text" id="rep-recipient" spellcheck="false" maxlength="200" placeholder="e.g. Pilots Federation, Sirius Corp..."></div>
+      <div class="field"><label>Report Contents</label><textarea id="rep-body" maxlength="20000" spellcheck="false"></textarea></div>
+      <div class="err" id="rep-err"></div>
+      <div class="actions">
+        <button class="btn primary" id="btn-save-report">File Report</button>
+        <button class="btn" id="btn-cancel-edit">Cancel</button>
+      </div>
+    </section>
+
+    <!-- PERSONNEL -->
+    <section id="view-personnel" class="view" hidden>
+      <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// PERSONNEL LEDGER</h2>
+      <div id="personnel-list"></div>
+    </section>
+
+    <!-- ROLES -->
+    <section id="view-roles" class="view" hidden>
+      <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// CLEARANCE MATRIX</h2>
+      <div class="role-card">
+        <h3>Commission New Role</h3>
+        <div class="rowline" style="margin-bottom:10px">
+          <input type="text" id="new-role-name" placeholder="Role designation" maxlength="40" style="flex:1;min-width:200px">
+          <button class="btn small primary" id="btn-create-role">Commission</button>
+        </div>
+        <div class="perm-grid" id="new-role-perms"></div>
+      </div>
+      <div id="roles-list"></div>
+    </section>
+  </main>
+</div>
+
+<div id="toast"></div>
+<script>
+'use strict';
+/* ================= helpers ================= */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return iso; } };
+
+let toastTimer = null;
+function toast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err show' : 'show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+}
+
+async function copyText(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Fallback for non-secure contexts
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  toast((label || 'Transmission') + ' copied to clipboard.');
+}
+
+/* ================= API client ================= */
+async function api(method, path, body) {
+  const opts = { method, credentials: 'same-origin', headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  let data = null;
+  try { data = await res.json(); } catch { /* empty */ }
+  if (!res.ok) throw new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+  return data;
+}
+
+/* ================= custom dropdown (div-based, Firefox-safe) ================= */
+class HudDropdown {
+  constructor(el, { options, placeholder, value, onChange, disabled }) {
+    this.el = el; this.options = options; this.onChange = onChange || (() => {});
+    this.value = value !== undefined ? value : '';
+    this.placeholder = placeholder || 'Select...';
+    this.build();
+    if (disabled) this.setDisabled(true);
+  }
+  build() {
+    this.el.classList.add('dd');
+    this.el.innerHTML = '';
+    this.btn = document.createElement('button');
+    this.btn.type = 'button';
+    this.btn.className = 'dd-btn';
+    this.label = document.createElement('span');
+    this.chev = document.createElement('span');
+    this.chev.className = 'dd-chev'; this.chev.textContent = '▾';
+    this.btn.append(this.label, this.chev);
+    this.menu = document.createElement('div');
+    this.menu.className = 'dd-menu'; this.menu.hidden = true;
+    this.menu.setAttribute('role', 'listbox');
+    this.renderMenu();
+    this.el.append(this.btn, this.menu);
+    this.btn.addEventListener('click', (e) => { e.stopPropagation(); this.toggle(); });
+    this.menu.addEventListener('click', (e) => {
+      const opt = e.target.closest('.dd-opt');
+      if (opt) { this.select(opt.dataset.val); this.close(); }
+    });
+    this.btn.addEventListener('keydown', (e) => this.onKey(e));
+    this.render();
+  }
+  renderMenu() {
+    this.menu.innerHTML = '';
+    this.options.forEach((o, i) => {
+      const d = document.createElement('div');
+      d.className = 'dd-opt' + (o.value === this.value ? ' sel' : '');
+      d.dataset.val = o.value; d.dataset.idx = i;
+      d.setAttribute('role', 'option');
+      d.textContent = o.label;
+      this.menu.appendChild(d);
+    });
+  }
+  render() {
+    const opt = this.options.find((o) => o.value === this.value);
+    this.label.textContent = opt ? opt.label : this.placeholder;
+    this.label.classList.toggle('ph', !opt);
+    this.renderMenu();
+  }
+  open() {
+    document.querySelectorAll('.dd.open').forEach((d) => { if (d !== this.el) d.classList.remove('open'); });
+    document.querySelectorAll('.dd-menu').forEach((m) => { if (m !== this.menu) m.hidden = true; });
+    this.el.classList.add('open'); this.menu.hidden = false;
+    this.hl = this.options.findIndex((o) => o.value === this.value);
+    this.paintHl();
+  }
+  close() { this.el.classList.remove('open'); this.menu.hidden = true; }
+  toggle() { this.menu.hidden ? this.open() : this.close(); }
+  paintHl() {
+    this.menu.querySelectorAll('.dd-opt').forEach((d) =>
+      d.classList.toggle('hl', Number(d.dataset.idx) === this.hl));
+  }
+  onKey(e) {
+    if (e.key === 'Escape') { this.close(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (this.menu.hidden) { this.open(); return; }
+      this.hl = (this.hl + (e.key === 'ArrowDown' ? 1 : -1) + this.options.length) % this.options.length;
+      this.paintHl();
+      const el = this.menu.querySelector(`[data-idx="${this.hl}"]`);
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && !this.menu.hidden && this.hl >= 0) {
+      e.preventDefault();
+      this.select(this.options[this.hl].value); this.close();
+    }
+  }
+  select(val) { this.value = val; this.render(); this.onChange(val); }
+  setOptions(options, value) {
+    this.options = options;
+    this.value = value !== undefined ? value : '';
+    this.render();
+  }
+  setDisabled(d) { this.el.classList.toggle('disabled', !!d); }
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+  document.querySelectorAll('.dd-menu').forEach((m) => { m.hidden = true; });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+    document.querySelectorAll('.dd-menu').forEach((m) => { m.hidden = true; });
+  }
+});
+
+/* ================= constants (mirror server) ================= */
+const CLASSIFICATIONS = ['UNCLASSIFIED','RESTRICTED','CONFIDENTIAL','SECRET','TOP SECRET'];
+const REPORT_TYPES = ['SOS','Intelligence Report','Diplomatic Communique'];
+const SUBTYPES = ['Espionage Attempt','CMDR Sighting','BGS/PowerPlay','Market Changes'];
+const PERMISSIONS = ['view_classified','create_report','edit_report','delete_report','manage_users','manage_roles'];
+const PERM_LABELS = {
+  view_classified:'View classified', create_report:'File reports', edit_report:'Revise reports',
+  delete_report:'Purge reports', manage_users:'Manage personnel', manage_roles:'Manage roles',
+};
+
+/* ================= state ================= */
+const S = {
+  user: null, guest: false, view: 'archive',
+  reports: [], roles: [], users: [],
+  filters: { q:'', type:'', classification:'' },
+  currentReport: null, editingId: null,
+  dd: {},
+};
+const can = (p) => !!(S.user && rolePerms()[p]);
+const rolePerms = () => {
+  const r = S.roles.find((x) => x.id === (S.user && S.user.roleId));
+  return (r && r.permissions) || {};
+};
+const isGuestView = () => S.guest || !S.user;
+
+/* ================= screens ================= */
+function show(id) {
+  ['screen-boot-gate','screen-boot','screen-access','screen-app'].forEach((s) => {
+    $(s).hidden = (s !== id);
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ================= boot sequence ================= */
+const BOOT_LINES = [
+  ['> OD-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 120],
+  ['> Mounting secure archive volume ... <span class="ok">OK</span>', 260],
+  ['> Uplink: settlement relay ... <span class="ok">LINK ESTABLISHED</span>', 380],
+  ['> Verifying clearance matrix ... <span class="ok">OK</span>', 300],
+  ['> Calibrating HUD projectors ... <span class="ok">OK</span>', 260],
+  ['> Sweeping for listening devices ... <span class="warn">NONE FOUND</span>', 420],
+  ['> Loading transmission codecs ... <span class="ok">OK</span>', 240],
+  ['> <span class="dim">All systems nominal. Awaiting operator.</span>', 300],
+];
+function runBoot() {
+  show('screen-boot');
+  const log = $('boot-log'), bar = $('boot-bar'), pct = $('boot-pct');
+  log.innerHTML = ''; bar.style.width = '0%'; pct.textContent = '0%';
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return finishBoot(); }
+  let i = 0, done = false;
+  const finish = () => { if (!done) { done = true; finishBoot(); } };
+  $('btn-skip-boot').onclick = finish;
+  const escHandler = (e) => { if (e.key === 'Escape') { finish(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
+  S.bootFinish = () => { document.removeEventListener('keydown', escHandler); finish(); };
+  (function step() {
+    if (done) return;
+    if (i >= BOOT_LINES.length) { setTimeout(finish, 450); return; }
+    const [html, delay] = BOOT_LINES[i];
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    log.appendChild(div);
+    i++;
+    const p = Math.round((i / BOOT_LINES.length) * 100);
+    bar.style.width = p + '%'; pct.textContent = p + '%';
+    setTimeout(step, delay);
+  })();
+}
+function finishBoot() { show('screen-access'); $('login-user').focus(); }
+
+/* ================= access: login / register / guest ================= */
+function setErr(id, msg) { $(id).textContent = msg || ''; }
+
+async function doLogin() {
+  setErr('login-err', '');
+  const username = $('login-user').value.trim();
+  const password = $('login-pass').value;
+  if (!username || !password) { setErr('login-err', 'Enter callsign and passphrase.'); return; }
+  try {
+    const { user } = await api('POST', '/api/login', { username, password });
+    await enterApp(user, false);
+  } catch (e) { setErr('login-err', e.message); }
+}
+
+async function doRegister() {
+  setErr('reg-err', '');
+  const username = $('reg-user').value.trim();
+  const cmdr = $('reg-cmdr').value.trim();
+  const password = $('reg-pass').value;
+  try {
+    const { user } = await api('POST', '/api/register', { username, cmdr, password });
+    toast('Account created. Welcome, ' + user.username + '.');
+    await enterApp(user, false);
+  } catch (e) { setErr('reg-err', e.message); }
+}
+
+async function enterApp(user, guest) {
+  S.user = user || null; S.guest = !!guest;
+  if (S.user) {
+    try { const r = await api('GET', '/api/roles'); S.roles = r.roles; } catch { S.roles = []; }
+  } else { S.roles = []; }
+  show('screen-app');
+  buildTabs();
+  updateWho();
+  await loadArchive();
+  setView('archive');
+}
+
+function updateWho() {
+  $('who-line').innerHTML = S.user
+    ? `OPERATOR <b>${esc(S.user.username)}</b> // ${esc(S.user.roleName || '')}`
+    : 'GUEST // DECLASSIFIED ONLY';
+}
+
+async function doLogout() {
+  try { await api('POST', '/api/logout'); } catch { /* ignore */ }
+  S.user = null; S.guest = false; S.currentReport = null;
+  show('screen-access');
+  $('login-pass').value = '';
+}
+
+/* ================= tabs & views ================= */
+function buildTabs() {
+  const tabs = [['archive', 'Archive']];
+  if (S.user && can('create_report')) tabs.push(['edit', 'New Report']);
+  if (S.user && can('manage_users')) tabs.push(['personnel', 'Personnel']);
+  if (S.user && can('manage_roles')) tabs.push(['roles', 'Roles']);
+  const nav = $('tabs');
+  nav.innerHTML = '';
+  tabs.forEach(([id, label]) => {
+    const b = document.createElement('button');
+    b.textContent = label; b.dataset.view = id;
+    b.onclick = () => { if (id === 'edit') openEditor(null); else setView(id); };
+    nav.appendChild(b);
+  });
+}
+
+function setView(name) {
+  S.view = name;
+  ['archive','detail','edit','personnel','roles'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+  document.querySelectorAll('#tabs button').forEach((b) =>
+    b.classList.toggle('active', b.dataset.view === name || (name === 'detail' && b.dataset.view === 'archive')));
+  // Re-trigger transition
+  const sec = $('view-' + name);
+  sec.classList.remove('view'); void sec.offsetWidth; sec.classList.add('view');
+  window.scrollTo(0, 0);
+  if (name === 'personnel') renderPersonnel();
+  if (name === 'roles') renderRoles();
+}
+
+/* ================= archive ================= */
+function initFilterDropdowns() {
+  S.dd.fltType = new HudDropdown($('dd-flt-type'), {
+    placeholder: 'All types',
+    options: [{ value:'', label:'All types' }, ...REPORT_TYPES.map((t) => ({ value: t, label: t }))],
+    onChange: (v) => { S.filters.type = v; loadArchive(); },
+  });
+  S.dd.fltCls = new HudDropdown($('dd-flt-cls'), {
+    placeholder: 'All classifications',
+    options: [{ value:'', label:'All classifications' }, ...CLASSIFICATIONS.map((c) => ({ value: c, label: c }))],
+    onChange: (v) => { S.filters.classification = v; loadArchive(); },
+  });
+}
+
+async function loadArchive() {
+  const params = new URLSearchParams();
+  if (S.filters.q) params.set('q', S.filters.q);
+  if (S.filters.type) params.set('type', S.filters.type);
+  if (S.filters.classification) params.set('classification', S.filters.classification);
+  const qs = params.toString() ? '?' + params.toString() : '';
+  try {
+    const path = isGuestView() ? '/api/declassified' + qs : '/api/reports' + qs;
+    const { reports } = await api('GET', path);
+    S.reports = reports;
+  } catch (e) {
+    if (!isGuestView()) { toast('Session expired — sign in again.', true); return doLogout(); }
+    S.reports = [];
+  }
+  renderArchive();
+}
+
+function clsBadge(c) {
+  return `<span class="cls ${esc(c).replace(' ', '-')}">${esc(c)}</span>`;
+}
+
+function renderArchive() {
+  const list = $('archive-list');
+  if (!S.reports.length) {
+    list.innerHTML = `<div class="empty">// NO TRANSMISSIONS ON THIS FREQUENCY //</div>`;
+    return;
+  }
+  list.innerHTML = '';
+  S.reports.forEach((r) => {
+    const card = document.createElement('div');
+    card.className = 'rep-card';
+    card.innerHTML = `<div class="t">${esc(r.title)}</div>
+      <div class="m">${clsBadge(r.classification)}${esc(r.type)}${r.subtype ? ' — ' + esc(r.subtype) : ''}</div>
+      <div class="m">CMDR ${esc(r.cmdr || '—')} // ${esc(fmtDate(r.createdAt))}</div>`;
+    card.onclick = () => openDetail(r.id);
+    list.appendChild(card);
+  });
+}
+
+/* ================= report detail + exports ================= */
+async function openDetail(id) {
+  try {
+    const { report } = await api('GET', '/api/reports/' + id);
+    S.currentReport = report;
+  } catch (e) { toast(e.message, true); return; }
+  const r = S.currentReport;
+  $('det-banner').textContent = '// ' + r.classification + ' //';
+  $('det-banner').style.color = 'var(--cyan-bright)';
+  $('det-cls').innerHTML = clsBadge(r.classification);
+  $('det-title').textContent = r.title;
+  const meta = [
+    ['REPORTING CMDR', r.cmdr || '—'],
+    ['REPORT TYPE', r.type],
+    ...(r.subtype ? [['SUBTYPE', r.subtype]] : []),
+    ...(r.recipient ? [['RECIPIENT PARTY', r.recipient]] : []),
+    ['FILED BY', r.authorUsername || '—'],
+    ['TIMESTAMP', fmtDate(r.createdAt)],
+  ];
+  $('det-meta').innerHTML = meta.map(([k, v]) =>
+    `<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('');
+  $('det-body').textContent = r.body;
+  // Revise is shown to any signed-in operator; the server enforces
+  // edit_report permission or authorship when saving.
+  $('btn-edit-report').hidden = !S.user;
+  $('btn-del-report').hidden = !(S.user && can('delete_report'));
+  setView('detail');
+}
+
+function discordTemplate(r) {
+  const lines = [
+    '**OBSIDIAN DIRECTORATE // ' + r.type.toUpperCase() + '**',
+    '**Classification:** ' + r.classification,
+    '**Reporting CMDR:** ' + (r.cmdr || '—'),
+    '**Title:** ' + r.title,
+  ];
+  if (r.subtype) lines.push('**Subtype:** ' + r.subtype);
+  if (r.recipient) lines.push('**Recipient Party:** ' + r.recipient);
+  lines.push('**Filed:** ' + fmtDate(r.createdAt) + ' // by ' + (r.authorUsername || '—'));
+  lines.push('', r.body);
+  return lines.join('\n');
+}
+
+function inaraTemplate(r) {
+  const lines = [
+    'OBSIDIAN DIRECTORATE TRANSMISSION',
+    '================================',
+    'Classification : ' + r.classification,
+    'Reporting CMDR: ' + (r.cmdr || '—'),
+    'Title          : ' + r.title,
+    'Type           : ' + r.type + (r.subtype ? ' — ' + r.subtype : ''),
+  ];
+  if (r.recipient) lines.push('Recipient      : ' + r.recipient);
+  lines.push('Filed          : ' + fmtDate(r.createdAt) + ' // by ' + (r.authorUsername || '—'));
+  lines.push('', r.body);
+  return lines.join('\n');
+}
+
+/* ================= report editor ================= */
+function initEditorDropdowns() {
+  S.dd.repCls = new HudDropdown($('dd-rep-cls'), {
+    placeholder: 'Select classification...',
+    options: CLASSIFICATIONS.map((c) => ({ value: c, label: c })),
+    value: 'UNCLASSIFIED',
+  });
+  S.dd.repType = new HudDropdown($('dd-rep-type'), {
+    placeholder: 'Select report type...',
+    options: REPORT_TYPES.map((t) => ({ value: t, label: t })),
+    onChange: syncTypeFields,
+  });
+  S.dd.repSub = new HudDropdown($('dd-rep-sub'), {
+    placeholder: 'Select subtype...',
+    options: SUBTYPES.map((s) => ({ value: s, label: s })),
+  });
+}
+
+function syncTypeFields() {
+  const t = S.dd.repType.value;
+  $('wrap-subtype').hidden = (t !== 'Intelligence Report');
+  $('wrap-recipient').hidden = (t !== 'Diplomatic Communique');
+}
+
+function openEditor(report) {
+  S.editingId = report ? report.id : null;
+  $('edit-heading').textContent = report ? '// REVISE TRANSMISSION' : '// NEW TRANSMISSION';
+  $('rep-cmdr').value = report ? report.cmdr : (S.user ? S.user.cmdr : '');
+  $('rep-title').value = report ? report.title : '';
+  S.dd.repCls.select(report ? report.classification : 'UNCLASSIFIED');
+  S.dd.repType.select(report ? report.type : '');
+  S.dd.repSub.select(report && report.subtype ? report.subtype : '');
+  $('rep-recipient').value = report && report.recipient ? report.recipient : '';
+  $('rep-body').value = report ? report.body : '';
+  setErr('rep-err', '');
+  syncTypeFields();
+  setView('edit');
+}
+
+async function saveReport() {
+  setErr('rep-err', '');
+  const payload = {
+    cmdr: $('rep-cmdr').value,
+    title: $('rep-title').value,
+    classification: S.dd.repCls.value,
+    type: S.dd.repType.value,
+    subtype: S.dd.repSub.value || null,
+    recipient: $('rep-recipient').value,
+    body: $('rep-body').value,
+  };
+  if (!payload.type) { setErr('rep-err', 'Select a report type.'); return; }
+  try {
+    if (S.editingId) {
+      await api('PUT', '/api/reports/' + S.editingId, payload);
+      toast('Transmission revised.');
+    } else {
+      await api('POST', '/api/reports', payload);
+      toast('Report filed.');
+    }
+    await loadArchive();
+    setView('archive');
+  } catch (e) { setErr('rep-err', e.message); }
+}
+
+/* ================= personnel (manage_users) ================= */
+async function renderPersonnel() {
+  const list = $('personnel-list');
+  try {
+    const { users } = await api('GET', '/api/users');
+    const { roles } = await api('GET', '/api/roles');
+    S.users = users; S.roles = roles;
+  } catch (e) { list.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  if (!S.users.length) { list.innerHTML = '<div class="empty">// NO PERSONNEL ON RECORD //</div>'; return; }
+  const tbl = document.createElement('table');
+  tbl.className = 'grid';
+  tbl.innerHTML = `<tr><th>CALLSIGN</th><th>CMDR</th><th>ROLE</th><th>ENLISTED</th><th>ACTIONS</th></tr>`;
+  S.users.forEach((u) => {
+    const tr = document.createElement('tr');
+    const isSelf = S.user && u.id === S.user.id;
+    tr.innerHTML = `<td style="color:var(--cyan-bright)">${esc(u.username)}</td>
+      <td>${esc(u.cmdr || '—')}</td>
+      <td class="rolecell"></td>
+      <td style="color:var(--muted)">${esc(fmtDate(u.createdAt))}</td>
+      <td><div class="rowline"></div></td>`;
+    const rowline = tr.querySelector('.rowline');
+    // role dropdown
+    const ddWrap = document.createElement('div');
+    ddWrap.style.minWidth = '160px';
+    tr.querySelector('.rolecell').appendChild(ddWrap);
+    const dd = new HudDropdown(ddWrap, {
+      options: S.roles.map((r) => ({ value: r.id, label: r.name })),
+      value: u.roleId,
+      disabled: isSelf,
+      onChange: async (roleId) => {
+        try { await api('PUT', `/api/users/${u.id}/role`, { roleId }); toast('Role updated.'); }
+        catch (e) { toast(e.message, true); renderPersonnel(); }
+      },
+    });
+    // reset password
+    const rp = document.createElement('button');
+    rp.className = 'btn small'; rp.textContent = 'Reset PW';
+    rp.disabled = isSelf;
+    rp.onclick = () => {
+      const wrap = document.createElement('div');
+      wrap.className = 'rowline'; wrap.style.marginTop = '8px';
+      wrap.innerHTML = `<input type="password" placeholder="new passphrase (min 8)" style="width:200px">
+        <button class="btn small primary">Apply</button><button class="btn small">Cancel</button>`;
+      const [inp, apply, cancel] = wrap.querySelectorAll('input,button');
+      cancel.onclick = () => wrap.remove();
+      apply.onclick = async () => {
+        try { await api('POST', `/api/users/${u.id}/reset-password`, { password: inp.value }); toast('Passphrase reset.'); wrap.remove(); }
+        catch (e) { toast(e.message, true); }
+      };
+      tr.querySelector('.rolecell').appendChild(wrap);
+      rp.disabled = true;
+    };
+    // delete
+    const del = document.createElement('button');
+    del.className = 'btn small danger'; del.textContent = 'Remove';
+    del.disabled = isSelf;
+    del.onclick = async () => {
+      if (!confirm(`Purge ${u.username} from the Directorate?`)) return;
+      try { await api('DELETE', `/api/users/${u.id}`); toast('Operative purged.'); renderPersonnel(); }
+      catch (e) { toast(e.message, true); }
+    };
+    rowline.append(rp, del);
+    tbl.appendChild(tr);
+  });
+  list.innerHTML = ''; list.appendChild(tbl);
+}
+
+/* ================= roles (manage_roles) ================= */
+function permCheckboxes(containerId, perms) {
+  const c = $(containerId);
+  c.innerHTML = '';
+  PERMISSIONS.forEach((p) => {
+    const lab = document.createElement('label');
+    lab.className = 'perm';
+    lab.innerHTML = `<input type="checkbox" data-perm="${p}" ${perms[p] ? 'checked' : ''}><span>${PERM_LABELS[p]}</span>`;
+    c.appendChild(lab);
+  });
+}
+function readPerms(containerId) {
+  const out = {};
+  document.querySelectorAll(`#${containerId} input[data-perm]`).forEach((i) => { out[i.dataset.perm] = i.checked; });
+  return out;
+}
+
+async function renderRoles() {
+  try {
+    const { roles } = await api('GET', '/api/roles');
+    S.roles = roles;
+  } catch (e) { $('roles-list').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  permCheckboxes('new-role-perms', {});
+  const list = $('roles-list');
+  list.innerHTML = '';
+  S.roles.forEach((r) => {
+    const card = document.createElement('div');
+    card.className = 'role-card';
+    const cid = 'perms-' + r.id;
+    card.innerHTML = `<div class="rowline" style="margin-bottom:10px">
+        <input type="text" value="${esc(r.name)}" maxlength="40" style="flex:1;min-width:180px" data-rname>
+        <button class="btn small primary" data-save>Save</button>
+        <button class="btn small danger" data-del ${r.name === 'Director' ? 'disabled title="The Director role cannot be deleted"' : ''}>Disband</button>
+      </div>
+      <div class="perm-grid" id="${cid}"></div>
+      <div style="color:var(--faint);font-size:11px;letter-spacing:1px">ID ${esc(r.id)}</div>`;
+    list.appendChild(card);
+    permCheckboxes(cid, r.permissions || {});
+    card.querySelector('[data-save]').onclick = async () => {
+      const name = card.querySelector('[data-rname]').value.trim();
+      try {
+        await api('PUT', '/api/roles/' + r.id, { name, permissions: readPerms(cid) });
+        toast('Role updated.');
+      } catch (e) { toast(e.message, true); }
+    };
+    const delBtn = card.querySelector('[data-del]');
+    if (delBtn && !delBtn.disabled) delBtn.onclick = async () => {
+      if (!confirm(`Disband the "${r.name}" role?`)) return;
+      try { await api('DELETE', '/api/roles/' + r.id); toast('Role disbanded.'); renderRoles(); }
+      catch (e) { toast(e.message, true); }
+    };
+  });
+}
+
+/* ================= wiring ================= */
+function wire() {
+  $('screen-boot-gate').addEventListener('click', runBoot);
+  $('btn-login').onclick = doLogin;
+  $('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  $('login-user').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  $('btn-register').onclick = doRegister;
+  $('link-register').onclick = () => { $('pane-login').hidden = true; $('pane-register').hidden = false; };
+  $('link-login').onclick = () => { $('pane-register').hidden = true; $('pane-login').hidden = false; };
+  $('btn-guest').onclick = () => enterApp(null, true);
+  $('btn-logout').onclick = doLogout;
+
+  $('flt-q').addEventListener('input', (e) => {
+    clearTimeout(S.qTimer);
+    S.qTimer = setTimeout(() => { S.filters.q = e.target.value; loadArchive(); }, 350);
+  });
+
+  $('btn-back-archive').onclick = () => setView('archive');
+  $('btn-copy-discord').onclick = () => { if (S.currentReport) copyText(discordTemplate(S.currentReport), 'Discord transmission'); };
+  $('btn-copy-inara').onclick = () => { if (S.currentReport) copyText(inaraTemplate(S.currentReport), 'Inara transmission'); };
+  $('btn-edit-report').onclick = () => { if (S.currentReport) openEditor(S.currentReport); };
+  $('btn-del-report').onclick = async () => {
+    if (!S.currentReport) return;
+    if (!confirm('Purge this transmission permanently?')) return;
+    try { await api('DELETE', '/api/reports/' + S.currentReport.id); toast('Transmission purged.'); await loadArchive(); setView('archive'); }
+    catch (e) { toast(e.message, true); }
+  };
+
+  $('btn-save-report').onclick = saveReport;
+  $('btn-cancel-edit').onclick = () => setView('archive');
+
+  $('btn-create-role').onclick = async () => {
+    const name = $('new-role-name').value.trim();
+    if (!name) { toast('Enter a role designation.', true); return; }
+    try {
+      await api('POST', '/api/roles', { name, permissions: readPerms('new-role-perms') });
+      $('new-role-name').value = '';
+      toast('Role commissioned.');
+      renderRoles();
+    } catch (e) { toast(e.message, true); }
+  };
+
+  initFilterDropdowns();
+  initEditorDropdowns();
+}
+
+/* ================= init ================= */
+(async function init() {
+  wire();
+  // If a session cookie is alive, skip the gate and go straight in.
+  try {
+    const { user } = await api('GET', '/api/me');
+    await enterApp(user, false);
+  } catch {
+    show('screen-boot-gate');
+  }
+})();
+</script>
+</body>
+</html>
