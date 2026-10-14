@@ -21,7 +21,6 @@ body{
   font-size:14px; line-height:1.5; overflow-x:hidden;
   background-image:radial-gradient(ellipse at 50% -10%, #0a2038 0%, var(--bg0) 60%);
 }
-/* scanlines + vignette overlays */
 #fx-scanlines{position:fixed;inset:0;pointer-events:none;z-index:9990;opacity:.5;
   background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);}
 #fx-vignette{position:fixed;inset:0;pointer-events:none;z-index:9989;
@@ -51,6 +50,7 @@ body{
 #screen-boot{align-items:stretch;max-width:900px;margin:0 auto;width:100%}
 .boot-shell{border:1px solid var(--line-bright);background:rgba(4,12,22,.92);min-height:60vh;
   box-shadow:0 0 50px rgba(70,200,255,.10);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.boot-stamp{padding:20px 28px 0;text-align:center}
 .boot-rings{position:absolute;top:26px;right:30px;width:120px;height:120px;opacity:.7}
 .ring{position:absolute;inset:0;border:1px dashed var(--cyan-dim);border-radius:50%}
 .ring.r1{animation:spin 14s linear infinite}
@@ -89,6 +89,7 @@ body{
 .panel h2{font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:11px;letter-spacing:3px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.field label .req{color:var(--red)}
 input[type=text],input[type=password],textarea{
   width:100%;font-family:var(--mono);font-size:14px;color:var(--cyan-bright);
   background:#04101d;border:1px solid var(--line-bright);padding:10px 12px;outline:none;transition:all .18s}
@@ -120,17 +121,20 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 80px;width:100%}
 .view{animation:viewin .28s ease}
 @keyframes viewin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
-/* ---------- custom dropdowns (div-based: Firefox-safe) ---------- */
+/* ---------- custom dropdowns (div-based: Firefox-safe, animated) ---------- */
 .dd{position:relative;width:100%}
 .dd-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
   font-family:var(--mono);font-size:14px;color:var(--cyan-bright);background:#04101d;
   border:1px solid var(--line-bright);padding:10px 12px;cursor:pointer;transition:all .18s;text-align:left}
 .dd-btn:hover,.dd.open .dd-btn{border-color:var(--cyan);box-shadow:0 0 12px rgba(70,200,255,.35)}
 .dd-btn .ph{color:var(--faint)}
-.dd-chev{color:var(--cyan);font-size:12px;transition:transform .18s;flex:none}
+.dd-chev{color:var(--cyan);font-size:12px;transition:transform .18s ease;flex:none}
 .dd.open .dd-chev{transform:rotate(180deg)}
 .dd-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:200;max-height:260px;overflow-y:auto;
-  background:#061525;border:1px solid var(--cyan);box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 18px rgba(70,200,255,.25)}
+  background:#061525;border:1px solid var(--cyan);box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 18px rgba(70,200,255,.25);
+  opacity:0;transform:translateY(-8px);visibility:hidden;
+  transition:opacity .18s ease, transform .18s ease, visibility 0s linear .18s}
+.dd.open .dd-menu{opacity:1;transform:none;visibility:visible;transition:opacity .18s ease, transform .18s ease}
 .dd-opt{padding:10px 12px;cursor:pointer;color:var(--text);font-size:13px;letter-spacing:1px;border-left:2px solid transparent}
 .dd-opt:hover,.dd-opt.hl{background:rgba(70,200,255,.14);border-left-color:var(--cyan);color:var(--cyan-bright)}
 .dd-opt.sel{color:var(--cyan-bright)}
@@ -146,19 +150,24 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 80px;width:100%}
   box-shadow:0 0 18px rgba(70,200,255,.18);transform:translateX(4px)}
 .rep-card .t{color:var(--cyan-bright);font-size:15px;letter-spacing:1px;margin-bottom:4px}
 .rep-card .m{color:var(--muted);font-size:12px;letter-spacing:1px}
+.rep-card.sos{border-left-color:var(--red);background:rgba(40,8,16,.55)}
+.rep-card.sos .t{color:#ffb3c1}
+.rep-card.sos:hover{border-color:var(--red);box-shadow:0 0 18px rgba(255,84,112,.25);background:rgba(52,10,20,.7)}
 .cls{display:inline-block;font-size:10px;letter-spacing:2px;padding:2px 10px;border:1px solid;margin-right:8px}
-.cls.UNCLASSIFIED{color:var(--green);border-color:var(--green)}
-.cls.RESTRICTED{color:var(--cyan);border-color:var(--cyan-dim)}
-.cls.CONFIDENTIAL{color:var(--amber);border-color:var(--amber)}
-.cls.SECRET{color:var(--orange);border-color:var(--orange)}
-.cls.TOP.SECRET,.cls.TOP-SECRET{color:var(--red);border-color:var(--red)}
+.cls.declassified{color:var(--green);border-color:var(--green)}
+.cls.restricted{color:var(--cyan);border-color:var(--cyan-dim)}
+.cls.classified{color:var(--red);border-color:var(--red)}
+.cls.sos{color:var(--red);border-color:var(--red);background:rgba(255,84,112,.10)}
 .empty{color:var(--faint);letter-spacing:2px;text-align:center;padding:60px 20px;border:1px dashed var(--line)}
 
 /* ---------- report detail ---------- */
 .detail{border:1px solid var(--line-bright);background:rgba(6,18,31,.92)}
-.detail-banner{padding:12px 20px;letter-spacing:4px;font-size:13px;border-bottom:1px solid var(--line-bright);text-align:center}
+.detail.sos{border-color:#7a2c3d;box-shadow:0 0 40px rgba(255,84,112,.12)}
+.detail-banner{padding:12px 20px;letter-spacing:4px;font-size:13px;border-bottom:1px solid var(--line-bright);text-align:center;color:var(--cyan-bright)}
+.detail-banner.sos{background:rgba(255,84,112,.10);color:var(--red);border-bottom:1px solid #7a2c3d}
 .detail-body{padding:24px}
 .detail h1{font-size:22px;color:var(--cyan-bright);letter-spacing:2px;margin:6px 0 16px;font-weight:normal}
+.detail.sos h1{color:var(--red)}
 .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:20px}
 .meta div{border:1px solid var(--line);padding:8px 12px;background:rgba(4,12,22,.6)}
 .meta .k{font-size:10px;letter-spacing:3px;color:var(--muted)}
@@ -166,6 +175,8 @@ main{max-width:1100px;margin:0 auto;padding:28px 24px 80px;width:100%}
 .report-text{white-space:pre-wrap;border:1px solid var(--line);padding:18px;background:#030a14;
   color:var(--text);line-height:1.7;margin-bottom:20px}
 .actions{display:flex;gap:10px;flex-wrap:wrap}
+.perma{margin-top:18px;font-size:12px;color:var(--muted);letter-spacing:1px}
+.perma code{color:var(--cyan-dim);word-break:break-all}
 
 /* ---------- admin tables ---------- */
 table.grid{width:100%;border-collapse:collapse;font-size:13px}
@@ -180,6 +191,10 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
 .role-card{border:1px solid var(--line-bright);background:rgba(8,22,38,.75);padding:18px;margin-bottom:14px}
 .role-card h3{color:var(--cyan-bright);letter-spacing:2px;font-weight:normal;margin-bottom:6px}
 .rowline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tier-badge{display:inline-block;font-size:10px;letter-spacing:2px;padding:3px 12px;border:1px solid;margin-left:10px;vertical-align:middle}
+.tier-badge.member{color:var(--cyan);border-color:var(--cyan-dim)}
+.tier-badge.high_command{color:var(--amber);border-color:var(--amber)}
+.tier-note{font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:10px}
 
 /* ---------- toast ---------- */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);z-index:9999;
@@ -208,31 +223,32 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
 <!-- BOOT GATE: required interaction before anything loads -->
 <div id="screen-boot-gate" class="screen">
   <div class="gate-frame">
-    <div class="gate-title">OBSIDIAN DIRECTORATE // SETTLEMENT DATA TERMINAL</div>
-    <div class="gate-big">RESTRICTED ACCESS</div>
-    <div class="gate-sub">[ CLICK TO INITIALIZE ]</div>
+    <div class="gate-title">OBSIDIAN DIRECTORATE // SECURE TERMINAL</div>
+    <div class="gate-big">INITIALIZE</div>
+    <div class="gate-sub">— CLICK TO ESTABLISH UPLINK —</div>
   </div>
 </div>
 
 <!-- BOOT SEQUENCE -->
 <div id="screen-boot" class="screen" hidden>
   <div class="boot-shell">
+    <div class="boot-stamp"><div class="stamp" style="display:inline-block;margin-bottom:0">THE OBSIDIAN DIRECTORATE</div></div>
     <div class="boot-rings"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div></div>
     <div id="boot-log"></div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div><span id="boot-pct">0%</span></div>
     <div class="boot-foot">
-      <span style="font-size:11px;letter-spacing:3px;color:var(--faint)">OD-TERMINAL v2.4 // COLD BOOT</span>
+      <span style="color:var(--faint);font-size:11px;letter-spacing:3px">OD-TERMINAL // SECURE UPLINK</span>
       <button class="btn small" id="btn-skip-boot">Skip [ESC]</button>
     </div>
   </div>
 </div>
 
-<!-- ACCESS SCREEN -->
+<!-- ACCESS -->
 <div id="screen-access" class="screen" hidden>
   <div class="stamp">THE OBSIDIAN DIRECTORATE</div>
   <div class="panel">
     <div id="pane-login">
-      <h2>// CLEARANCE CHECK</h2>
+      <h2>// OPERATOR AUTHENTICATION</h2>
       <div class="field"><label>Callsign</label><input type="text" id="login-user" autocomplete="username" spellcheck="false"></div>
       <div class="field"><label>Passphrase</label><input type="password" id="login-pass" autocomplete="current-password"></div>
       <div class="err" id="login-err"></div>
@@ -240,12 +256,10 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
       <div style="text-align:center"><button class="linklike" id="link-register">No clearance? Request an account</button></div>
       <div class="divider">OR</div>
       <button class="btn" id="btn-guest" style="width:100%">Enter as Guest</button>
-      <div style="text-align:center;color:var(--faint);font-size:11px;margin-top:10px;letter-spacing:1px">
-        Guests may read declassified transmissions only.
-      </div>
+      <div class="tier-note" style="text-align:center">Guests may view declassified transmissions only.</div>
     </div>
     <div id="pane-register" hidden>
-      <h2>// ACCOUNT REQUEST</h2>
+      <h2>// CLEARANCE REQUEST</h2>
       <div class="field"><label>Callsign</label><input type="text" id="reg-user" autocomplete="username" spellcheck="false"></div>
       <div class="field"><label>CMDR Name (optional)</label><input type="text" id="reg-cmdr" spellcheck="false"></div>
       <div class="field"><label>Passphrase (min 8 chars)</label><input type="password" id="reg-pass" autocomplete="new-password"></div>
@@ -256,7 +270,7 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- APP -->
 <div id="screen-app" class="screen" hidden>
   <div class="topbar">
     <div class="mini-stamp">OBSIDIAN DIRECTORATE</div>
@@ -265,23 +279,21 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
   </div>
   <nav class="tabs" id="tabs"></nav>
   <main>
-    <!-- ARCHIVE -->
     <section id="view-archive" class="view" hidden>
       <div class="filters">
-        <div class="f grow"><label class="field"><span style="font-size:11px;letter-spacing:3px;color:var(--muted)">SEARCH</span></label>
-          <input type="text" id="flt-q" placeholder="title, CMDR, contents..."></div>
-        <div class="f"><label class="field"><span style="font-size:11px;letter-spacing:3px;color:var(--muted)">TYPE</span></label>
-          <div class="dd" id="dd-flt-type"></div></div>
-        <div class="f"><label class="field"><span style="font-size:11px;letter-spacing:3px;color:var(--muted)">CLASSIFICATION</span></label>
-          <div class="dd" id="dd-flt-cls"></div></div>
+        <div class="f grow"><div class="field" style="margin:0"><label>Search</label>
+          <input type="text" id="flt-q" placeholder="title, CMDR, contents, REF..."></div></div>
+        <div class="f"><div class="field" style="margin:0"><label>Type</label>
+          <div class="dd" id="dd-flt-type"></div></div></div>
+        <div class="f"><div class="field" style="margin:0"><label>Classification</label>
+          <div class="dd" id="dd-flt-cls"></div></div></div>
       </div>
       <div id="archive-list"></div>
     </section>
 
-    <!-- REPORT DETAIL -->
     <section id="view-detail" class="view" hidden>
       <button class="btn small" id="btn-back-archive" style="margin-bottom:16px">&larr; Archive</button>
-      <div class="detail">
+      <div class="detail" id="det-card">
         <div class="detail-banner" id="det-banner"></div>
         <div class="detail-body">
           <div id="det-cls"></div>
@@ -294,44 +306,51 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
             <button class="btn small" id="btn-edit-report" hidden>Revise</button>
             <button class="btn small danger" id="btn-del-report" hidden>Purge</button>
           </div>
+          <div class="perma">PERMALINK&nbsp; <code id="det-perma"></code>
+            <button class="linklike" id="btn-copy-perma" style="margin:0 0 0 8px">copy</button></div>
         </div>
       </div>
     </section>
 
-    <!-- NEW / EDIT REPORT -->
     <section id="view-edit" class="view" hidden>
       <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal" id="edit-heading">// NEW TRANSMISSION</h2>
-      <div class="field"><label>Reporting CMDR</label><input type="text" id="rep-cmdr" spellcheck="false" maxlength="64"></div>
-      <div class="field"><label>Report Title</label><input type="text" id="rep-title" spellcheck="false" maxlength="200"></div>
+      <div class="field"><label>Reporting CMDR <span class="req">*</span></label><input type="text" id="rep-reporting" spellcheck="false" maxlength="64"></div>
+      <div class="field"><label>Signing CMDR (optional)</label><input type="text" id="rep-signing" spellcheck="false" maxlength="64"></div>
+      <div class="field"><label>Report Title <span class="req">*</span></label><input type="text" id="rep-title" spellcheck="false" maxlength="200"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:200px"><label>Report Classification</label><div class="dd" id="dd-rep-cls"></div></div>
         <div class="field" style="flex:1;min-width:200px"><label>Report Type</label><div class="dd" id="dd-rep-type"></div></div>
       </div>
-      <div class="field" id="wrap-subtype" hidden><label>Intelligence Subtype</label><div class="dd" id="dd-rep-sub"></div></div>
-      <div class="field" id="wrap-recipient" hidden><label>Recipient Party</label><input type="text" id="rep-recipient" spellcheck="false" maxlength="200" placeholder="e.g. Pilots Federation, Sirius Corp..."></div>
-      <div class="field"><label>Report Contents</label><textarea id="rep-body" maxlength="20000" spellcheck="false"></textarea></div>
+      <div class="field" id="wrap-subtype" hidden><label>Intelligence Subtype <span class="req">*</span></label><div class="dd" id="dd-rep-sub"></div></div>
+      <div class="field" id="wrap-recipient" hidden><label>Recipient Party <span class="req">*</span></label><input type="text" id="rep-recipient" spellcheck="false" maxlength="200" placeholder="e.g. Pilots Federation, Sirius Corp..."></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:200px"><label>Sector (optional)</label><input type="text" id="rep-sector" spellcheck="false" maxlength="200" placeholder="e.g. IC 2391 Sector FL-Y c14"></div>
+        <div class="field" style="flex:1;min-width:200px"><label>Directed To (optional)</label><input type="text" id="rep-directed" spellcheck="false" maxlength="200" placeholder="e.g. The Obsidian Directorate"></div>
+      </div>
+      <div class="field"><label>Report Contents <span class="req">*</span></label><textarea id="rep-body" maxlength="20000" spellcheck="false"></textarea></div>
       <div class="err" id="rep-err"></div>
-      <div class="actions">
+      <div class="rowline">
         <button class="btn primary" id="btn-save-report">File Report</button>
         <button class="btn" id="btn-cancel-edit">Cancel</button>
       </div>
+      <div class="tier-note">SOS transmissions are always filed as DECLASSIFIED.</div>
     </section>
 
-    <!-- PERSONNEL -->
     <section id="view-personnel" class="view" hidden>
       <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// PERSONNEL LEDGER</h2>
       <div id="personnel-list"></div>
     </section>
 
-    <!-- ROLES -->
     <section id="view-roles" class="view" hidden>
       <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// CLEARANCE MATRIX</h2>
       <div class="role-card">
         <h3>Commission New Role</h3>
-        <div class="rowline" style="margin-bottom:10px">
+        <div class="rowline">
           <input type="text" id="new-role-name" placeholder="Role designation" maxlength="40" style="flex:1;min-width:200px">
+          <div style="min-width:220px"><div class="dd" id="dd-new-role-tier"></div></div>
           <button class="btn small primary" id="btn-create-role">Commission</button>
         </div>
+        <div class="tier-note">Access tier — Member: declassified + restricted. High Command: all classifications.</div>
         <div class="perm-grid" id="new-role-perms"></div>
       </div>
       <div id="roles-list"></div>
@@ -341,13 +360,18 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
 
 <div id="toast"></div>
 <script>
-'use strict';
 /* ================= helpers ================= */
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return iso; } };
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEPT','OCT','NOV','DEC'];
+const fmtExportDate = (iso) => {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return `${String(d.getDate()).padStart(2,'0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+};
 
 let toastTimer = null;
 function toast(msg, isErr) {
@@ -367,9 +391,24 @@ async function copyText(text, label) {
     ta.value = text;
     ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); ta.remove();
+    try { document.execCommand('copy'); } catch {}
+    ta.remove();
   }
   toast((label || 'Transmission') + ' copied to clipboard.');
+}
+
+// Copy embedded rich HTML (text/html) with a plain-text fallback.
+async function copyRichHtml(html, plainText, label) {
+  try {
+    const item = new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([plainText], { type: 'text/plain' }),
+    });
+    await navigator.clipboard.write([item]);
+    toast((label || 'Transmission') + ' copied to clipboard.');
+  } catch {
+    await copyText(plainText, label);
+  }
 }
 
 /* ================= API client ================= */
@@ -386,7 +425,7 @@ async function api(method, path, body) {
   return data;
 }
 
-/* ================= custom dropdown (div-based, Firefox-safe) ================= */
+/* ================= custom dropdown (div-based, Firefox-safe, animated) ================= */
 class HudDropdown {
   constructor(el, { options, placeholder, value, onChange, disabled }) {
     this.el = el; this.options = options; this.onChange = onChange || (() => {});
@@ -406,7 +445,7 @@ class HudDropdown {
     this.chev.className = 'dd-chev'; this.chev.textContent = '▾';
     this.btn.append(this.label, this.chev);
     this.menu = document.createElement('div');
-    this.menu.className = 'dd-menu'; this.menu.hidden = true;
+    this.menu.className = 'dd-menu';
     this.menu.setAttribute('role', 'listbox');
     this.renderMenu();
     this.el.append(this.btn, this.menu);
@@ -437,13 +476,12 @@ class HudDropdown {
   }
   open() {
     document.querySelectorAll('.dd.open').forEach((d) => { if (d !== this.el) d.classList.remove('open'); });
-    document.querySelectorAll('.dd-menu').forEach((m) => { if (m !== this.menu) m.hidden = true; });
-    this.el.classList.add('open'); this.menu.hidden = false;
+    this.el.classList.add('open');
     this.hl = this.options.findIndex((o) => o.value === this.value);
     this.paintHl();
   }
-  close() { this.el.classList.remove('open'); this.menu.hidden = true; }
-  toggle() { this.menu.hidden ? this.open() : this.close(); }
+  close() { this.el.classList.remove('open'); }
+  toggle() { this.el.classList.contains('open') ? this.close() : this.open(); }
   paintHl() {
     this.menu.querySelectorAll('.dd-opt').forEach((d) =>
       d.classList.toggle('hl', Number(d.dataset.idx) === this.hl));
@@ -452,12 +490,12 @@ class HudDropdown {
     if (e.key === 'Escape') { this.close(); return; }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      if (this.menu.hidden) { this.open(); return; }
+      if (!this.el.classList.contains('open')) { this.open(); return; }
       this.hl = (this.hl + (e.key === 'ArrowDown' ? 1 : -1) + this.options.length) % this.options.length;
       this.paintHl();
       const el = this.menu.querySelector(`[data-idx="${this.hl}"]`);
       if (el) el.scrollIntoView({ block: 'nearest' });
-    } else if (e.key === 'Enter' && !this.menu.hidden && this.hl >= 0) {
+    } else if (e.key === 'Enter' && this.el.classList.contains('open') && this.hl >= 0) {
       e.preventDefault();
       this.select(this.options[this.hl].value); this.close();
     }
@@ -472,24 +510,25 @@ class HudDropdown {
 }
 document.addEventListener('click', () => {
   document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
-  document.querySelectorAll('.dd-menu').forEach((m) => { m.hidden = true; });
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
-    document.querySelectorAll('.dd-menu').forEach((m) => { m.hidden = true; });
   }
 });
 
 /* ================= constants (mirror server) ================= */
-const CLASSIFICATIONS = ['UNCLASSIFIED','RESTRICTED','CONFIDENTIAL','SECRET','TOP SECRET'];
+const CLASSIFICATIONS = ['declassified','restricted','classified'];
+const CLS_LABEL = { declassified:'DECLASSIFIED', restricted:'RESTRICTED', classified:'CLASSIFIED' };
 const REPORT_TYPES = ['SOS','Intelligence Report','Diplomatic Communique'];
 const SUBTYPES = ['Espionage Attempt','CMDR Sighting','BGS/PowerPlay','Market Changes'];
-const PERMISSIONS = ['view_classified','create_report','edit_report','delete_report','manage_users','manage_roles'];
+const PERMISSIONS = ['create_report','edit_report','delete_report','manage_users','manage_roles'];
 const PERM_LABELS = {
-  view_classified:'View classified', create_report:'File reports', edit_report:'Revise reports',
+  create_report:'File reports', edit_report:'Revise reports',
   delete_report:'Purge reports', manage_users:'Manage personnel', manage_roles:'Manage roles',
 };
+const TIER_LABEL = { member:'Member', high_command:'High Command' };
+const DISCORD_ROLE_PING = '<@&1507659469516046489>';
 
 /* ================= state ================= */
 const S = {
@@ -504,7 +543,10 @@ const rolePerms = () => {
   const r = S.roles.find((x) => x.id === (S.user && S.user.roleId));
   return (r && r.permissions) || {};
 };
+const userTier = () => (S.user && S.user.tier === 'high_command') ? 'high_command' : 'member';
+const isHighCommand = () => userTier() === 'high_command';
 const isGuestView = () => S.guest || !S.user;
+const tierClassifications = () => isGuestView() ? ['declassified'] : (isHighCommand() ? CLASSIFICATIONS : ['declassified','restricted']);
 
 /* ================= screens ================= */
 function show(id) {
@@ -535,7 +577,6 @@ function runBoot() {
   $('btn-skip-boot').onclick = finish;
   const escHandler = (e) => { if (e.key === 'Escape') { finish(); document.removeEventListener('keydown', escHandler); } };
   document.addEventListener('keydown', escHandler);
-  S.bootFinish = () => { document.removeEventListener('keydown', escHandler); finish(); };
   (function step() {
     if (done) return;
     if (i >= BOOT_LINES.length) { setTimeout(finish, 450); return; }
@@ -551,69 +592,74 @@ function runBoot() {
 }
 function finishBoot() { show('screen-access'); $('login-user').focus(); }
 
-/* ================= access: login / register / guest ================= */
+/* ================= auth ================= */
 function setErr(id, msg) { $(id).textContent = msg || ''; }
 
 async function doLogin() {
   setErr('login-err', '');
-  const username = $('login-user').value.trim();
-  const password = $('login-pass').value;
-  if (!username || !password) { setErr('login-err', 'Enter callsign and passphrase.'); return; }
   try {
-    const { user } = await api('POST', '/api/login', { username, password });
-    await enterApp(user, false);
+    const { user } = await api('POST', '/api/login', {
+      username: $('login-user').value.trim(), password: $('login-pass').value,
+    });
+    $('login-pass').value = '';
+    enterApp(user, false);
   } catch (e) { setErr('login-err', e.message); }
 }
 
 async function doRegister() {
   setErr('reg-err', '');
-  const username = $('reg-user').value.trim();
-  const cmdr = $('reg-cmdr').value.trim();
-  const password = $('reg-pass').value;
   try {
-    const { user } = await api('POST', '/api/register', { username, cmdr, password });
-    toast('Account created. Welcome, ' + user.username + '.');
-    await enterApp(user, false);
+    const { user } = await api('POST', '/api/register', {
+      username: $('reg-user').value.trim(), cmdr: $('reg-cmdr').value.trim(), password: $('reg-pass').value,
+    });
+    $('reg-pass').value = '';
+    enterApp(user, false);
   } catch (e) { setErr('reg-err', e.message); }
 }
 
 async function enterApp(user, guest) {
   S.user = user || null; S.guest = !!guest;
-  if (S.user) {
-    try { const r = await api('GET', '/api/roles'); S.roles = r.roles; } catch { S.roles = []; }
-  } else { S.roles = []; }
   show('screen-app');
-  buildTabs();
   updateWho();
-  await loadArchive();
+  buildTabs();
+  initFilterDropdowns();
+  if (can('manage_roles')) { await loadRoles(); }
+  if (can('manage_users')) { await loadUsers(); }
   setView('archive');
+  await loadArchive();
 }
 
 function updateWho() {
-  $('who-line').innerHTML = S.user
-    ? `OPERATOR <b>${esc(S.user.username)}</b> // ${esc(S.user.roleName || '')}`
-    : 'GUEST // DECLASSIFIED ONLY';
+  if (S.guest || !S.user) {
+    $('who-line').innerHTML = 'CLEARANCE: <b>GUEST</b> — declassified only';
+  } else {
+    const tier = S.user.tier === 'high_command' ? 'HIGH COMMAND' : 'MEMBER';
+    $('who-line').innerHTML = `OPERATOR: <b>${esc(S.user.username)}</b> · ${esc(S.user.roleName)} · ${tier}`;
+  }
 }
 
 async function doLogout() {
-  try { await api('POST', '/api/logout'); } catch { /* ignore */ }
-  S.user = null; S.guest = false; S.currentReport = null;
+  try { await api('POST', '/api/logout'); } catch {}
+  S.user = null; S.guest = false; S.reports = [];
+  $('login-user').value = ''; $('login-pass').value = '';
   show('screen-access');
-  $('login-pass').value = '';
 }
 
 /* ================= tabs & views ================= */
 function buildTabs() {
-  const tabs = [['archive', 'Archive']];
-  if (S.user && can('create_report')) tabs.push(['edit', 'New Report']);
-  if (S.user && can('manage_users')) tabs.push(['personnel', 'Personnel']);
-  if (S.user && can('manage_roles')) tabs.push(['roles', 'Roles']);
+  const tabs = [{ id: 'archive', label: 'Archive' }];
+  if (can('create_report')) tabs.push({ id: 'edit', label: 'New Transmission' });
+  if (can('manage_users')) tabs.push({ id: 'personnel', label: 'Personnel' });
+  if (can('manage_roles')) tabs.push({ id: 'roles', label: 'Roles' });
   const nav = $('tabs');
   nav.innerHTML = '';
-  tabs.forEach(([id, label]) => {
+  tabs.forEach((t) => {
     const b = document.createElement('button');
-    b.textContent = label; b.dataset.view = id;
-    b.onclick = () => { if (id === 'edit') openEditor(null); else setView(id); };
+    b.textContent = t.label; b.dataset.view = t.id;
+    b.addEventListener('click', async () => {
+      if (t.id === 'edit') openEditor(null);
+      else { setView(t.id); if (t.id === 'archive') await loadArchive(); }
+    });
     nav.appendChild(b);
   });
 }
@@ -623,140 +669,196 @@ function setView(name) {
   ['archive','detail','edit','personnel','roles'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
   document.querySelectorAll('#tabs button').forEach((b) =>
     b.classList.toggle('active', b.dataset.view === name || (name === 'detail' && b.dataset.view === 'archive')));
-  // Re-trigger transition
-  const sec = $('view-' + name);
-  sec.classList.remove('view'); void sec.offsetWidth; sec.classList.add('view');
   window.scrollTo(0, 0);
-  if (name === 'personnel') renderPersonnel();
-  if (name === 'roles') renderRoles();
 }
 
 /* ================= archive ================= */
 function initFilterDropdowns() {
   S.dd.fltType = new HudDropdown($('dd-flt-type'), {
-    placeholder: 'All types',
-    options: [{ value:'', label:'All types' }, ...REPORT_TYPES.map((t) => ({ value: t, label: t }))],
-    onChange: (v) => { S.filters.type = v; loadArchive(); },
+    options: [{ value:'', label:'All types' }].concat(REPORT_TYPES.map((t) => ({ value:t, label:t }))),
+    value: S.filters.type,
+    onChange: (v) => { S.filters.type = v; renderArchive(); },
   });
   S.dd.fltCls = new HudDropdown($('dd-flt-cls'), {
-    placeholder: 'All classifications',
-    options: [{ value:'', label:'All classifications' }, ...CLASSIFICATIONS.map((c) => ({ value: c, label: c }))],
-    onChange: (v) => { S.filters.classification = v; loadArchive(); },
+    options: [{ value:'', label:'All classifications' }].concat(
+      tierClassifications().map((c) => ({ value:c, label:CLS_LABEL[c] }))),
+    value: S.filters.classification,
+    onChange: (v) => { S.filters.classification = v; renderArchive(); },
   });
 }
 
 async function loadArchive() {
-  const params = new URLSearchParams();
-  if (S.filters.q) params.set('q', S.filters.q);
-  if (S.filters.type) params.set('type', S.filters.type);
-  if (S.filters.classification) params.set('classification', S.filters.classification);
-  const qs = params.toString() ? '?' + params.toString() : '';
   try {
-    const path = isGuestView() ? '/api/declassified' + qs : '/api/reports' + qs;
+    const path = isGuestView() ? '/api/declassified' : '/api/reports';
     const { reports } = await api('GET', path);
     S.reports = reports;
-  } catch (e) {
-    if (!isGuestView()) { toast('Session expired — sign in again.', true); return doLogout(); }
-    S.reports = [];
-  }
-  renderArchive();
+    renderArchive();
+  } catch (e) { toast(e.message, true); }
 }
 
-function clsBadge(c) {
-  return `<span class="cls ${esc(c).replace(' ', '-')}">${esc(c)}</span>`;
+function clsBadge(r) {
+  if (r.type === 'SOS') return `<span class="cls sos">SOS</span>`;
+  return `<span class="cls ${esc(r.classification)}">${esc(CLS_LABEL[r.classification] || r.classification)}</span>`;
 }
 
 function renderArchive() {
-  const list = $('archive-list');
-  if (!S.reports.length) {
-    list.innerHTML = `<div class="empty">// NO TRANSMISSIONS ON THIS FREQUENCY //</div>`;
+  const box = $('archive-list');
+  const { q, type, classification } = S.filters;
+  const ql = q.trim().toLowerCase();
+  const list = S.reports.filter((r) => {
+    if (type && r.type !== type) return false;
+    if (classification && r.classification !== classification) return false;
+    if (ql && !(r.title.toLowerCase().includes(ql) || r.body.toLowerCase().includes(ql) ||
+      (r.reportingCmdr || '').toLowerCase().includes(ql) || (r.ref || '').toLowerCase().includes(ql))) return false;
+    return true;
+  });
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">// NO TRANSMISSIONS MATCH CURRENT FILTERS</div>`;
     return;
   }
-  list.innerHTML = '';
-  S.reports.forEach((r) => {
-    const card = document.createElement('div');
-    card.className = 'rep-card';
-    card.innerHTML = `<div class="t">${esc(r.title)}</div>
-      <div class="m">${clsBadge(r.classification)}${esc(r.type)}${r.subtype ? ' — ' + esc(r.subtype) : ''}</div>
-      <div class="m">CMDR ${esc(r.cmdr || '—')} // ${esc(fmtDate(r.createdAt))}</div>`;
-    card.onclick = () => openDetail(r.id);
-    list.appendChild(card);
+  box.innerHTML = '';
+  list.forEach((r) => {
+    const d = document.createElement('div');
+    d.className = 'rep-card' + (r.type === 'SOS' ? ' sos' : '');
+    d.innerHTML = `<div class="t">${clsBadge(r)} ${esc(r.title)}</div>
+      <div class="m">${esc(r.ref || '')} · ${esc(r.reportingCmdr || '')} · ${esc(r.type)}${r.subtype ? ' / ' + esc(r.subtype) : ''} · ${esc(fmtDate(r.createdAt))}</div>`;
+    d.addEventListener('click', () => openDetail(r.id));
+    box.appendChild(d);
   });
 }
 
-/* ================= report detail + exports ================= */
 async function openDetail(id) {
+  const r = S.reports.find((x) => x.id === id);
+  if (!r) return;
+  // Refresh from server so the detail is never stale.
   try {
     const { report } = await api('GET', '/api/reports/' + id);
     S.currentReport = report;
-  } catch (e) { toast(e.message, true); return; }
-  const r = S.currentReport;
-  $('det-banner').textContent = '// ' + r.classification + ' //';
-  $('det-banner').style.color = 'var(--cyan-bright)';
-  $('det-cls').innerHTML = clsBadge(r.classification);
-  $('det-title').textContent = r.title;
-  const meta = [
-    ['REPORTING CMDR', r.cmdr || '—'],
-    ['REPORT TYPE', r.type],
-    ...(r.subtype ? [['SUBTYPE', r.subtype]] : []),
-    ...(r.recipient ? [['RECIPIENT PARTY', r.recipient]] : []),
-    ['FILED BY', r.authorUsername || '—'],
-    ['TIMESTAMP', fmtDate(r.createdAt)],
-  ];
-  $('det-meta').innerHTML = meta.map(([k, v]) =>
-    `<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('');
-  $('det-body').textContent = r.body;
-  // Revise is shown to any signed-in operator; the server enforces
-  // edit_report permission or authorship when saving.
-  $('btn-edit-report').hidden = !S.user;
-  $('btn-del-report').hidden = !(S.user && can('delete_report'));
+  } catch {
+    S.currentReport = r;
+  }
+  renderDetail();
   setView('detail');
 }
 
-function discordTemplate(r) {
-  const lines = [
-    '**OBSIDIAN DIRECTORATE // ' + r.type.toUpperCase() + '**',
-    '**Classification:** ' + r.classification,
-    '**Reporting CMDR:** ' + (r.cmdr || '—'),
-    '**Title:** ' + r.title,
+function renderDetail() {
+  const r = S.currentReport;
+  if (!r) return;
+  const isSos = r.type === 'SOS';
+  $('det-card').classList.toggle('sos', isSos);
+  const banner = $('det-banner');
+  banner.classList.toggle('sos', isSos);
+  banner.textContent = isSos
+    ? '⚠ THE OBSIDIAN DIRECTORATE — URGENT TRANSMISSION ⚠'
+    : '🔒 THE OBSIDIAN DIRECTORATE — CLASSIFIED TRANSMISSION 🔒';
+  $('det-cls').innerHTML = clsBadge(r);
+  $('det-title').textContent = r.title;
+  const meta = [
+    ['REF', r.ref || '—'],
+    ['REPORT TYPE', r.subtype ? `${r.type} / ${r.subtype}` : r.type],
+    ['FILED BY', r.reportingCmdr || '—'],
   ];
-  if (r.subtype) lines.push('**Subtype:** ' + r.subtype);
-  if (r.recipient) lines.push('**Recipient Party:** ' + r.recipient);
-  lines.push('**Filed:** ' + fmtDate(r.createdAt) + ' // by ' + (r.authorUsername || '—'));
-  lines.push('', r.body);
-  return lines.join('\n');
+  if (r.signingCmdr) meta.push(['SIGNED BY', r.signingCmdr]);
+  if (r.sector) meta.push(['SECTOR', r.sector]);
+  if (r.directedTo) meta.push(['DIRECTED TO', r.directedTo]);
+  if (r.recipient) meta.push(['RECIPIENT PARTY', r.recipient]);
+  meta.push(['CLASSIFICATION', CLS_LABEL[r.classification] || r.classification]);
+  meta.push(['FILED', fmtDate(r.createdAt)]);
+  $('det-meta').innerHTML = meta.map(([k, v]) =>
+    `<div><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('');
+  $('det-body').textContent = r.body;
+  $('det-perma').textContent = r.ref ? `${location.origin}/archive/${r.ref}` : '—';
+  const editable = !isGuestView() && (can('edit_report') || (S.user && r.authorUsername === S.user.username));
+  $('btn-edit-report').hidden = !editable;
+  $('btn-del-report').hidden = !(can('delete_report'));
 }
 
-function inaraTemplate(r) {
-  const lines = [
-    'OBSIDIAN DIRECTORATE TRANSMISSION',
-    '================================',
-    'Classification : ' + r.classification,
-    'Reporting CMDR: ' + (r.cmdr || '—'),
-    'Title          : ' + r.title,
-    'Type           : ' + r.type + (r.subtype ? ' — ' + r.subtype : ''),
-  ];
-  if (r.recipient) lines.push('Recipient      : ' + r.recipient);
-  lines.push('Filed          : ' + fmtDate(r.createdAt) + ' // by ' + (r.authorUsername || '—'));
-  lines.push('', r.body);
-  return lines.join('\n');
+/* ================= exports ================= */
+const EXPORT_CLS = { declassified: 'DECLASSIFIED', restricted: 'DIRECTORATE PERSONNEL', classified: 'OBSIDIAN EYES ONLY' };
+
+function discordText(r) {
+  const isSos = r.type === 'SOS';
+  const L = [];
+  L.push(DISCORD_ROLE_PING);
+  L.push(isSos
+    ? '**THE OBSIDIAN DIRECTORATE — URGENT TRANSMISSION**'
+    : '🔒 **THE OBSIDIAN DIRECTORATE — CLASSIFIED TRANSMISSION** 🔒');
+  L.push('');
+  L.push(`\`REF: ${r.ref || '—'}\`  \`CLASSIFICATION: ${EXPORT_CLS[r.classification] || r.classification}\``);
+  L.push('');
+  L.push(`**Title:** ${r.title}`);
+  L.push(`**Report Type:** ${r.subtype ? r.type + ' / ' + r.subtype : r.type}`);
+  L.push(`**Filed By:** ${r.reportingCmdr || '—'}`);
+  if (r.sector) L.push(`**Sector:** ${r.sector}`);
+  if (r.directedTo) L.push(`**Directed To:** ${r.directedTo}`);
+  L.push(`**Date:** ${fmtExportDate(r.createdAt)}`);
+  L.push('');
+  L.push('```');
+  L.push(r.body);
+  L.push('```');
+  if (r.signingCmdr) {
+    L.push('');
+    L.push('**Signed,**');
+    L.push(`CMDR ${r.signingCmdr}`);
+  }
+  L.push('*The Obsidian Directorate*');
+  return L.join('\n');
 }
 
-/* ================= report editor ================= */
+function inaraHtml(r) {
+  const isSos = r.type === 'SOS';
+  const e = esc;
+  let h = `<div style="font-family:monospace">`;
+  h += `<p><strong>THE OBSIDIAN DIRECTORATE — ${isSos ? 'URGENT' : 'CLASSIFIED'} TRANSMISSION</strong></p>`;
+  h += `<p><code>REF: ${e(r.ref || '—')}</code> &nbsp;|&nbsp; <code>CLASSIFICATION: ${e(EXPORT_CLS[r.classification] || r.classification)}</code></p>`;
+  h += `<p><strong>Title:</strong> ${e(r.title)}<br>`;
+  h += `<strong>Report Type:</strong> ${e(r.subtype ? r.type + ' / ' + r.subtype : r.type)}<br>`;
+  h += `<strong>Filed By:</strong> ${e(r.reportingCmdr || '—')}<br>`;
+  if (r.sector) h += `<strong>Sector:</strong> ${e(r.sector)}<br>`;
+  if (r.directedTo) h += `<strong>Directed To:</strong> ${e(r.directedTo)}<br>`;
+  h += `<strong>Date:</strong> ${e(fmtExportDate(r.createdAt))}</p>`;
+  h += `<blockquote style="border-left:3px solid #1e5a8f;margin:12px 0;padding:8px 14px;color:#c9e8ff">${e(r.body).replace(/\n/g, '<br>')}</blockquote>`;
+  if (r.signingCmdr) h += `<p><strong>Signed,</strong><br>CMDR ${e(r.signingCmdr)}</p>`;
+  h += `<p><em>The Obsidian Directorate</em></p></div>`;
+  return h;
+}
+
+function inaraPlain(r) {
+  const isSos = r.type === 'SOS';
+  const L = [];
+  L.push(`THE OBSIDIAN DIRECTORATE — ${isSos ? 'URGENT' : 'CLASSIFIED'} TRANSMISSION`);
+  L.push('');
+  L.push(`REF: ${r.ref || '—'} | CLASSIFICATION: ${EXPORT_CLS[r.classification] || r.classification}`);
+  L.push('');
+  L.push(`Title: ${r.title}`);
+  L.push(`Report Type: ${r.subtype ? r.type + ' / ' + r.subtype : r.type}`);
+  L.push(`Filed By: ${r.reportingCmdr || '—'}`);
+  if (r.sector) L.push(`Sector: ${r.sector}`);
+  if (r.directedTo) L.push(`Directed To: ${r.directedTo}`);
+  L.push(`Date: ${fmtExportDate(r.createdAt)}`);
+  L.push('');
+  L.push(r.body);
+  if (r.signingCmdr) { L.push(''); L.push('Signed,'); L.push(`CMDR ${r.signingCmdr}`); }
+  L.push('The Obsidian Directorate');
+  return L.join('\n');
+}
+
+/* ================= editor ================= */
 function initEditorDropdowns() {
   S.dd.repCls = new HudDropdown($('dd-rep-cls'), {
-    placeholder: 'Select classification...',
-    options: CLASSIFICATIONS.map((c) => ({ value: c, label: c })),
-    value: 'UNCLASSIFIED',
+    options: CLASSIFICATIONS.map((c) => ({ value: c, label: CLS_LABEL[c] })),
+    value: 'declassified',
+    onChange: () => {},
   });
   S.dd.repType = new HudDropdown($('dd-rep-type'), {
-    placeholder: 'Select report type...',
     options: REPORT_TYPES.map((t) => ({ value: t, label: t })),
+    value: 'SOS',
     onChange: syncTypeFields,
   });
   S.dd.repSub = new HudDropdown($('dd-rep-sub'), {
-    placeholder: 'Select subtype...',
     options: SUBTYPES.map((s) => ({ value: s, label: s })),
+    value: '',
+    onChange: () => {},
   });
 }
 
@@ -764,225 +866,266 @@ function syncTypeFields() {
   const t = S.dd.repType.value;
   $('wrap-subtype').hidden = (t !== 'Intelligence Report');
   $('wrap-recipient').hidden = (t !== 'Diplomatic Communique');
+  if (t === 'SOS') {
+    // SOS is always declassified — lock the classification dropdown.
+    S.dd.repCls.select('declassified');
+    S.dd.repCls.setDisabled(true);
+  } else {
+    S.dd.repCls.setDisabled(false);
+  }
 }
 
 function openEditor(report) {
   S.editingId = report ? report.id : null;
   $('edit-heading').textContent = report ? '// REVISE TRANSMISSION' : '// NEW TRANSMISSION';
-  $('rep-cmdr').value = report ? report.cmdr : (S.user ? S.user.cmdr : '');
-  $('rep-title').value = report ? report.title : '';
-  S.dd.repCls.select(report ? report.classification : 'UNCLASSIFIED');
-  S.dd.repType.select(report ? report.type : '');
-  S.dd.repSub.select(report && report.subtype ? report.subtype : '');
-  $('rep-recipient').value = report && report.recipient ? report.recipient : '';
-  $('rep-body').value = report ? report.body : '';
-  setErr('rep-err', '');
+  const r = report || {};
+  $('rep-reporting').value = r.reportingCmdr || '';
+  $('rep-signing').value = r.signingCmdr || '';
+  $('rep-title').value = r.title || '';
+  $('rep-sector').value = r.sector || '';
+  $('rep-directed').value = r.directedTo || '';
+  $('rep-recipient').value = r.recipient || '';
+  $('rep-body').value = r.body || '';
+  if (!S.dd.repCls) initEditorDropdowns();
+  S.dd.repCls.setOptions(CLASSIFICATIONS.map((c) => ({ value: c, label: CLS_LABEL[c] })), r.classification || 'declassified');
+  S.dd.repType.setOptions(REPORT_TYPES.map((t) => ({ value: t, label: t })), r.type || 'SOS');
+  S.dd.repSub.setOptions(SUBTYPES.map((s) => ({ value: s, label: s })), r.subtype || '');
   syncTypeFields();
+  setErr('rep-err', '');
   setView('edit');
 }
 
 async function saveReport() {
   setErr('rep-err', '');
   const payload = {
-    cmdr: $('rep-cmdr').value,
-    title: $('rep-title').value,
+    reportingCmdr: $('rep-reporting').value.trim(),
+    signingCmdr: $('rep-signing').value.trim(),
+    title: $('rep-title').value.trim(),
     classification: S.dd.repCls.value,
     type: S.dd.repType.value,
-    subtype: S.dd.repSub.value || null,
-    recipient: $('rep-recipient').value,
+    subtype: S.dd.repSub.value,
+    recipient: $('rep-recipient').value.trim(),
+    sector: $('rep-sector').value.trim(),
+    directedTo: $('rep-directed').value.trim(),
     body: $('rep-body').value,
   };
-  if (!payload.type) { setErr('rep-err', 'Select a report type.'); return; }
   try {
     if (S.editingId) {
       await api('PUT', '/api/reports/' + S.editingId, payload);
       toast('Transmission revised.');
     } else {
       await api('POST', '/api/reports', payload);
-      toast('Report filed.');
+      toast('Transmission filed.');
     }
-    await loadArchive();
     setView('archive');
+    await loadArchive();
   } catch (e) { setErr('rep-err', e.message); }
 }
 
-/* ================= personnel (manage_users) ================= */
-async function renderPersonnel() {
-  const list = $('personnel-list');
+/* ================= personnel ================= */
+async function loadUsers() {
   try {
     const { users } = await api('GET', '/api/users');
-    const { roles } = await api('GET', '/api/roles');
-    S.users = users; S.roles = roles;
-  } catch (e) { list.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  if (!S.users.length) { list.innerHTML = '<div class="empty">// NO PERSONNEL ON RECORD //</div>'; return; }
-  const tbl = document.createElement('table');
-  tbl.className = 'grid';
-  tbl.innerHTML = `<tr><th>CALLSIGN</th><th>CMDR</th><th>ROLE</th><th>ENLISTED</th><th>ACTIONS</th></tr>`;
-  S.users.forEach((u) => {
-    const tr = document.createElement('tr');
-    const isSelf = S.user && u.id === S.user.id;
-    tr.innerHTML = `<td style="color:var(--cyan-bright)">${esc(u.username)}</td>
-      <td>${esc(u.cmdr || '—')}</td>
-      <td class="rolecell"></td>
-      <td style="color:var(--muted)">${esc(fmtDate(u.createdAt))}</td>
-      <td><div class="rowline"></div></td>`;
-    const rowline = tr.querySelector('.rowline');
-    // role dropdown
-    const ddWrap = document.createElement('div');
-    ddWrap.style.minWidth = '160px';
-    tr.querySelector('.rolecell').appendChild(ddWrap);
-    const dd = new HudDropdown(ddWrap, {
-      options: S.roles.map((r) => ({ value: r.id, label: r.name })),
-      value: u.roleId,
-      disabled: isSelf,
-      onChange: async (roleId) => {
-        try { await api('PUT', `/api/users/${u.id}/role`, { roleId }); toast('Role updated.'); }
-        catch (e) { toast(e.message, true); renderPersonnel(); }
-      },
-    });
-    // reset password
-    const rp = document.createElement('button');
-    rp.className = 'btn small'; rp.textContent = 'Reset PW';
-    rp.disabled = isSelf;
-    rp.onclick = () => {
-      const wrap = document.createElement('div');
-      wrap.className = 'rowline'; wrap.style.marginTop = '8px';
-      wrap.innerHTML = `<input type="password" placeholder="new passphrase (min 8)" style="width:200px">
-        <button class="btn small primary">Apply</button><button class="btn small">Cancel</button>`;
-      const [inp, apply, cancel] = wrap.querySelectorAll('input,button');
-      cancel.onclick = () => wrap.remove();
-      apply.onclick = async () => {
-        try { await api('POST', `/api/users/${u.id}/reset-password`, { password: inp.value }); toast('Passphrase reset.'); wrap.remove(); }
-        catch (e) { toast(e.message, true); }
-      };
-      tr.querySelector('.rolecell').appendChild(wrap);
-      rp.disabled = true;
-    };
-    // delete
-    const del = document.createElement('button');
-    del.className = 'btn small danger'; del.textContent = 'Remove';
-    del.disabled = isSelf;
-    del.onclick = async () => {
-      if (!confirm(`Purge ${u.username} from the Directorate?`)) return;
-      try { await api('DELETE', `/api/users/${u.id}`); toast('Operative purged.'); renderPersonnel(); }
-      catch (e) { toast(e.message, true); }
-    };
-    rowline.append(rp, del);
-    tbl.appendChild(tr);
-  });
-  list.innerHTML = ''; list.appendChild(tbl);
+    S.users = users;
+    renderPersonnel();
+  } catch (e) { toast(e.message, true); }
 }
 
-/* ================= roles (manage_roles) ================= */
+function renderPersonnel() {
+  const box = $('personnel-list');
+  if (!S.users.length) { box.innerHTML = '<div class="empty">// NO PERSONNEL ON RECORD</div>'; return; }
+  let html = `<table class="grid"><tr><th>CALLSIGN</th><th>CMDR</th><th>ROLE</th><th>TIER</th><th></th></tr>`;
+  S.users.forEach((u) => {
+    const self = S.user && u.id === S.user.id;
+    const roleOpts = S.roles.map((r) =>
+      `<option value="${esc(r.id)}" ${r.id === u.roleId ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
+    html += `<tr><td>${esc(u.username)}</td><td>${esc(u.cmdr || '—')}</td>
+      <td><select data-role-for="${esc(u.id)}" ${self ? 'disabled' : ''} style="font-family:var(--mono);background:#04101d;color:var(--cyan-bright);border:1px solid var(--line-bright);padding:6px">${roleOpts}</select></td>
+      <td><span class="tier-badge ${esc(u.tier)}">${esc(TIER_LABEL[u.tier] || u.tier)}</span></td>
+      <td class="rowline">${self ? '<span style="color:var(--faint)">(you)</span>' :
+        `<button class="btn small" data-reset="${esc(u.id)}">Reset PW</button>
+         <button class="btn small danger" data-deluser="${esc(u.id)}">Remove</button>`}</td></tr>`;
+  });
+  box.innerHTML = html + '</table>';
+  box.querySelectorAll('[data-role-for]').forEach((sel) =>
+    sel.addEventListener('change', async () => {
+      try {
+        await api('PUT', `/api/users/${sel.dataset.roleFor}/role`, { roleId: sel.value });
+        toast('Role reassigned.');
+        await loadUsers();
+      } catch (e) { toast(e.message, true); await loadUsers(); }
+    }));
+  box.querySelectorAll('[data-reset]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const pw = prompt('New passphrase for operator (min 8 chars):');
+      if (pw == null) return;
+      try { await api('POST', `/api/users/${b.dataset.reset}/reset-password`, { password: pw }); toast('Passphrase reset.'); }
+      catch (e) { toast(e.message, true); }
+    }));
+  box.querySelectorAll('[data-deluser]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Remove this operator from the terminal?')) return;
+      try { await api('DELETE', `/api/users/${b.dataset.deluser}`); toast('Operator removed.'); await loadUsers(); }
+      catch (e) { toast(e.message, true); }
+    }));
+}
+
+/* ================= roles ================= */
+async function loadRoles() {
+  try {
+    const { roles } = await api('GET', '/api/roles');
+    S.roles = roles;
+    renderRoles();
+  } catch (e) { toast(e.message, true); }
+}
+
 function permCheckboxes(containerId, perms) {
   const c = $(containerId);
   c.innerHTML = '';
   PERMISSIONS.forEach((p) => {
     const lab = document.createElement('label');
     lab.className = 'perm';
-    lab.innerHTML = `<input type="checkbox" data-perm="${p}" ${perms[p] ? 'checked' : ''}><span>${PERM_LABELS[p]}</span>`;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = p; cb.checked = !!(perms && perms[p]);
+    lab.append(cb, document.createTextNode(PERM_LABELS[p]));
     c.appendChild(lab);
   });
 }
+
 function readPerms(containerId) {
   const out = {};
-  document.querySelectorAll(`#${containerId} input[data-perm]`).forEach((i) => { out[i.dataset.perm] = i.checked; });
+  $(containerId).querySelectorAll('input[type=checkbox]').forEach((cb) => { out[cb.value] = cb.checked; });
   return out;
 }
 
+function tierDropdownHtml(role) {
+  return `<select data-tier-for="${esc(role.id)}" style="font-family:var(--mono);background:#04101d;color:var(--cyan-bright);border:1px solid var(--line-bright);padding:6px">
+    <option value="member" ${role.tier !== 'high_command' ? 'selected' : ''}>Member — declassified + restricted</option>
+    <option value="high_command" ${role.tier === 'high_command' ? 'selected' : ''}>High Command — all classifications</option>
+  </select>`;
+}
+
 async function renderRoles() {
-  try {
-    const { roles } = await api('GET', '/api/roles');
-    S.roles = roles;
-  } catch (e) { $('roles-list').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  permCheckboxes('new-role-perms', {});
-  const list = $('roles-list');
-  list.innerHTML = '';
-  S.roles.forEach((r) => {
+  if (!S.dd.newRoleTier) {
+    S.dd.newRoleTier = new HudDropdown($('dd-new-role-tier'), {
+      options: [
+        { value: 'member', label: 'Member — declassified + restricted' },
+        { value: 'high_command', label: 'High Command — all classifications' },
+      ],
+      value: 'member',
+      onChange: () => {},
+    });
+  }
+  permCheckboxes('new-role-perms', { create_report: true });
+  const box = $('roles-list');
+  box.innerHTML = '';
+  S.roles.forEach((role) => {
     const card = document.createElement('div');
     card.className = 'role-card';
-    const cid = 'perms-' + r.id;
-    card.innerHTML = `<div class="rowline" style="margin-bottom:10px">
-        <input type="text" value="${esc(r.name)}" maxlength="40" style="flex:1;min-width:180px" data-rname>
-        <button class="btn small primary" data-save>Save</button>
-        <button class="btn small danger" data-del ${r.name === 'Director' ? 'disabled title="The Director role cannot be deleted"' : ''}>Disband</button>
+    const usersWith = S.users.filter((u) => u.roleId === role.id).length;
+    card.innerHTML = `
+      <h3>${esc(role.name)}<span class="tier-badge ${esc(role.tier)}">${esc(TIER_LABEL[role.tier] || role.tier).toUpperCase()}</span></h3>
+      <div class="tier-note">${usersWith} operator${usersWith === 1 ? '' : 's'} assigned · Access tier controls which classifications this role may read.</div>
+      <div class="rowline" style="margin:12px 0">
+        <input type="text" value="${esc(role.name)}" data-rname="${esc(role.id)}" maxlength="40" style="flex:1;min-width:180px">
+        ${tierDropdownHtml(role)}
       </div>
-      <div class="perm-grid" id="${cid}"></div>
-      <div style="color:var(--faint);font-size:11px;letter-spacing:1px">ID ${esc(r.id)}</div>`;
-    list.appendChild(card);
-    permCheckboxes(cid, r.permissions || {});
-    card.querySelector('[data-save]').onclick = async () => {
-      const name = card.querySelector('[data-rname]').value.trim();
-      try {
-        await api('PUT', '/api/roles/' + r.id, { name, permissions: readPerms(cid) });
-        toast('Role updated.');
-      } catch (e) { toast(e.message, true); }
-    };
-    const delBtn = card.querySelector('[data-del]');
-    if (delBtn && !delBtn.disabled) delBtn.onclick = async () => {
-      if (!confirm(`Disband the "${r.name}" role?`)) return;
-      try { await api('DELETE', '/api/roles/' + r.id); toast('Role disbanded.'); renderRoles(); }
-      catch (e) { toast(e.message, true); }
-    };
+      <div class="perm-grid" id="perms-${esc(role.id)}"></div>
+      <div class="rowline">
+        <button class="btn small primary" data-saverole="${esc(role.id)}">Apply</button>
+        <button class="btn small danger" data-delrole="${esc(role.id)}">Disband</button>
+      </div>`;
+    box.appendChild(card);
+    permCheckboxes('perms-' + role.id, role.permissions);
   });
+  box.querySelectorAll('[data-saverole]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const id = b.dataset.saverole;
+      try {
+        await api('PUT', '/api/roles/' + id, {
+          name: box.querySelector(`[data-rname="${id}"]`).value.trim(),
+          tier: box.querySelector(`[data-tier-for="${id}"]`).value,
+          permissions: readPerms('perms-' + id),
+        });
+        toast('Role updated.');
+        await loadRoles();
+      } catch (e) { toast(e.message, true); }
+    }));
+  box.querySelectorAll('[data-delrole]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Disband this role?')) return;
+      try { await api('DELETE', '/api/roles/' + b.dataset.delrole); toast('Role disbanded.'); await loadRoles(); }
+      catch (e) { toast(e.message, true); }
+    }));
 }
 
 /* ================= wiring ================= */
 function wire() {
-  $('screen-boot-gate').addEventListener('click', runBoot);
-  $('btn-login').onclick = doLogin;
+  $('btn-login').addEventListener('click', doLogin);
   $('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-  $('login-user').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-  $('btn-register').onclick = doRegister;
-  $('link-register').onclick = () => { $('pane-login').hidden = true; $('pane-register').hidden = false; };
-  $('link-login').onclick = () => { $('pane-register').hidden = true; $('pane-login').hidden = false; };
-  $('btn-guest').onclick = () => enterApp(null, true);
-  $('btn-logout').onclick = doLogout;
+  $('btn-register').addEventListener('click', doRegister);
+  $('btn-guest').addEventListener('click', () => enterApp(null, true));
+  $('link-register').addEventListener('click', () => { $('pane-login').hidden = true; $('pane-register').hidden = false; });
+  $('link-login').addEventListener('click', () => { $('pane-register').hidden = true; $('pane-login').hidden = false; });
+  $('btn-logout').addEventListener('click', doLogout);
 
-  $('flt-q').addEventListener('input', (e) => {
-    clearTimeout(S.qTimer);
-    S.qTimer = setTimeout(() => { S.filters.q = e.target.value; loadArchive(); }, 350);
+  $('btn-back-archive').addEventListener('click', () => setView('archive'));
+  $('flt-q').addEventListener('input', (e) => { S.filters.q = e.target.value; renderArchive(); });
+
+  $('btn-copy-discord').addEventListener('click', () => {
+    if (S.currentReport) copyText(discordText(S.currentReport), 'Discord transmission');
+  });
+  $('btn-copy-inara').addEventListener('click', () => {
+    if (S.currentReport) copyRichHtml(inaraHtml(S.currentReport), inaraPlain(S.currentReport), 'Inara transmission');
+  });
+  $('btn-copy-perma').addEventListener('click', () => {
+    if (S.currentReport && S.currentReport.ref) copyText(`${location.origin}/archive/${S.currentReport.ref}`, 'Permalink');
+  });
+  $('btn-edit-report').addEventListener('click', () => { if (S.currentReport) openEditor(S.currentReport); });
+  $('btn-del-report').addEventListener('click', async () => {
+    if (!S.currentReport || !confirm('Purge this transmission from the archive?')) return;
+    try {
+      await api('DELETE', '/api/reports/' + S.currentReport.id);
+      toast('Transmission purged.');
+      setView('archive');
+      await loadArchive();
+    } catch (e) { toast(e.message, true); }
   });
 
-  $('btn-back-archive').onclick = () => setView('archive');
-  $('btn-copy-discord').onclick = () => { if (S.currentReport) copyText(discordTemplate(S.currentReport), 'Discord transmission'); };
-  $('btn-copy-inara').onclick = () => { if (S.currentReport) copyText(inaraTemplate(S.currentReport), 'Inara transmission'); };
-  $('btn-edit-report').onclick = () => { if (S.currentReport) openEditor(S.currentReport); };
-  $('btn-del-report').onclick = async () => {
-    if (!S.currentReport) return;
-    if (!confirm('Purge this transmission permanently?')) return;
-    try { await api('DELETE', '/api/reports/' + S.currentReport.id); toast('Transmission purged.'); await loadArchive(); setView('archive'); }
-    catch (e) { toast(e.message, true); }
-  };
+  $('btn-save-report').addEventListener('click', saveReport);
+  $('btn-cancel-edit').addEventListener('click', () => setView('archive'));
 
-  $('btn-save-report').onclick = saveReport;
-  $('btn-cancel-edit').onclick = () => setView('archive');
-
-  $('btn-create-role').onclick = async () => {
-    const name = $('new-role-name').value.trim();
-    if (!name) { toast('Enter a role designation.', true); return; }
+  $('btn-create-role').addEventListener('click', async () => {
     try {
-      await api('POST', '/api/roles', { name, permissions: readPerms('new-role-perms') });
+      await api('POST', '/api/roles', {
+        name: $('new-role-name').value.trim(),
+        tier: S.dd.newRoleTier ? S.dd.newRoleTier.value : 'member',
+        permissions: readPerms('new-role-perms'),
+      });
       $('new-role-name').value = '';
       toast('Role commissioned.');
-      renderRoles();
+      await loadRoles();
     } catch (e) { toast(e.message, true); }
-  };
-
-  initFilterDropdowns();
-  initEditorDropdowns();
+  });
 }
 
 /* ================= init ================= */
 (async function init() {
   wire();
-  // If a session cookie is alive, skip the gate and go straight in.
-  try {
-    const { user } = await api('GET', '/api/me');
-    await enterApp(user, false);
-  } catch {
-    show('screen-boot-gate');
-  }
+  let sessionUser = null;
+  try { ({ user: sessionUser } = await api('GET', '/api/me')); } catch { /* no live session */ }
+  // The gate requires one click; a live session then resumes straight into the app.
+  $('screen-boot-gate').addEventListener('click', () => {
+    runBoot();
+    if (sessionUser) {
+      const iv = setInterval(() => {
+        if (!$('screen-access').hidden) {
+          clearInterval(iv);
+          enterApp(sessionUser, false);
+        }
+      }, 250);
+    }
+  }, { once: true });
 })();
 </script>
 </body>

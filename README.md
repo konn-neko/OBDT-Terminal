@@ -14,6 +14,56 @@ Node.js built-ins only (`http`, `fs`, `crypto`, `path`, `url`).
   Discord/Inara copy-paste export.
 - `obsidian-directorate.service` — systemd unit for autostart.
 
+## Clearance model (three tiers)
+
+Classifications are exactly three levels: **declassified**, **restricted**,
+**classified**.
+
+| Tier | Who | Sees |
+|---|---|---|
+| Guest | not signed in | `declassified` only |
+| Member | any signed-in operator | `declassified` + `restricted` |
+| High Command | roles flagged High Command | everything, incl. `classified` |
+
+Each role carries an access tier (`member` or `high_command`), editable in the
+Clearance Matrix. The Director role is seeded as High Command. The last
+High Command role cannot be deleted or demoted.
+
+Reference links (`/archive/<REF>`) enforce the same tiers: a guest opening a
+restricted reference sees **RESTRICTED — MEMBER SIGN-IN REQUIRED**; a viewer
+without High Command clearance opening a classified reference sees
+**CLASSIFIED — HIGH COMMAND REQUIRED**; unknown references show
+**REFERENCE NOT FOUND**.
+
+SOS reports are always filed as **declassified** (forced at save time) and
+render in crimson red.
+
+## Reports & REF codes
+
+Every saved report gets an immutable reference code generated once at filing:
+
+```
+OBDT-YYYYMMDD-HHMMSS-NNNN   e.g. OBDT-20261013-143022-0042
+```
+
+`YYYYMMDD-HHMMSS` is the filing date/time; `NNNN` is the zero-padded archive
+sequence (first report ever filed = `0001`). Revisions never regenerate the REF.
+
+Required fields: **Report Title**, **Reporting CMDR**. Optional: **Signing CMDR**,
+**Sector**, **Directed To**. Intelligence Reports require a subtype; Diplomatic
+Communiques require a Recipient Party. Each report has a permalink at
+`/archive/<REF>`.
+
+## Export formats
+
+- **Copy for Discord** — plain-text classified-transmission template: role ping
+  `<@&1507659469516046489>`, transmission header (URGENT for SOS), inline-code
+  `REF:` / `CLASSIFICATION:` stamps, bold labeled fields, fenced body block,
+  signed footer. Classification labels: `DECLASSIFIED`, `DIRECTORATE PERSONNEL`,
+  `OBSIDIAN EYES ONLY`.
+- **Copy for Inara** — embedded rich HTML on the clipboard (renders formatted on
+  paste, no visible markers), with a plain-text fallback.
+
 ## Deploy on a VPS (Ubuntu/Debian)
 
 ```bash
@@ -79,9 +129,9 @@ Restore by stopping the service, extracting over `data/`, fixing ownership
 
 ## Notes
 
-- First registered account path: on a fresh `data/` dir the server
-  auto-creates `director` with a random password (printed to stdout and saved
-  to `data/admin-credentials.txt` with mode `0600`). Later registrations get
-  the **Operative** role by default.
-- Guests ("Enter as Guest") can only read `UNCLASSIFIED` transmissions.
+- First-run: on a fresh `data/` dir the server auto-creates `director`
+  (High Command) with a random password (printed to stdout and saved to
+  `data/admin-credentials.txt` with mode `0600`). Later registrations get the
+  **Operative** (Member tier) role by default.
+- Guests ("Enter as Guest") can only read `declassified` transmissions.
 - No analytics, no external requests — the page is fully self-contained.

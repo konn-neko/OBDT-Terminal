@@ -25,13 +25,15 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const BODY_LIMIT = 1 << 20; // 1 MiB max JSON body
 
-const CLASSIFICATIONS = ['UNCLASSIFIED', 'RESTRICTED', 'CONFIDENTIAL', 'SECRET', 'TOP SECRET'];
+// Classification model: exactly three levels.
+const CLASSIFICATIONS = ['declassified', 'restricted', 'classified'];
+// Access tiers: guest (not logged in) < member (any logged-in role) < high_command.
+const TIERS = ['member', 'high_command'];
 const REPORT_TYPES = ['SOS', 'Intelligence Report', 'Diplomatic Communique'];
 const SUBTYPES = {
   'Intelligence Report': ['Espionage Attempt', 'CMDR Sighting', 'BGS/PowerPlay', 'Market Changes'],
 };
 const PERMISSIONS = [
-  'view_classified',
   'create_report',
   'edit_report',
   'delete_report',
@@ -72,6 +74,7 @@ const db = {
   roles: loadJson('roles.json', []),
   reports: loadJson('reports.json', []),
   sessions: loadJson('sessions.json', {}),
+  meta: loadJson('meta.json', { reportSeq: 0 }),
 };
 
 function saveAll() {
@@ -79,6 +82,7 @@ function saveAll() {
   saveJson('roles.json', db.roles);
   saveJson('reports.json', db.reports);
   saveJson('sessions.json', db.sessions);
+  saveJson('meta.json', db.meta);
 }
 
 function rid() {
@@ -95,26 +99,53 @@ function seedIfEmpty() {
     const all = Object.fromEntries(PERMISSIONS.map((p) => [p, true]));
     const none = Object.fromEntries(PERMISSIONS.map((p) => [p, false]));
     db.roles.push(
-      { id: rid(), name: 'Director', permissions: { ...all } },
+      { id: rid(), name: 'Director', tier: 'high_command', permissions: { ...all } },
       {
         id: rid(),
         name: 'Officer',
+        tier: 'member',
         permissions: { ...all, manage_users: false, manage_roles: false },
       },
       {
         id: rid(),
         name: 'Operative',
-        permissions: { ...none, view_classified: true, create_report: true },
-      },
-      { id: rid(), name: 'Guest', permissions: { ...none } }
+        tier: 'member',
+        permissions: { ...none, create_report: true, edit_report: true },
+      }
     );
+  } else {
+    // Repair pass for databases seeded by older builds: ensure tier exists.
+    let dirty = false;
+    for (const r of db.roles) {
+      if (r.tier !== 'member' && r.tier !== 'high_command') {
+        r.tier = r.name === 'Director' ? 'high_command' : 'member';
+        dirty = true;
+      }
+      if (r.permissions && 'view_classified' in r.permissions) {
+        delete r.permissions.view_classified;
+        dirty = true;
+      }
+    }
+    // Guarantee at least one high_command role exists.
+    if (!db.roles.some((r) => r.tier === 'high_command')) {
+      const director = db.roles.find((r) => r.name === 'Director') || db.roles[0];
+      if (director) {
+        director.tier = 'high_command';
+        dirty = true;
+      }
+    }
+    if (dirty) saveJson('roles.json', db.roles);
   }
 
   if (db.users.length === 0) {
-    let directorRole = db.roles.find((r) => r.name === 'Director');
+    let directorRole = db.roles.find((r) => r.tier === 'high_command');
     if (!directorRole) {
-      // Pathological state: users empty but no Director role. Repair it.
-      directorRole = { id: rid(), name: 'Director', permissions: Object.fromEntries(PERMISSIONS.map((p) => [p, true])) };
+      directorRole = {
+        id: rid(),
+        name: 'Director',
+        tier: 'high_command',
+        permissions: Object.fromEntries(PERMISSIONS.map((p) => [p, true])),
+      };
       db.roles.push(directorRole);
     }
     const password = crypto.randomBytes(12).toString('base64url'); // 16 chars
@@ -194,6 +225,26 @@ function roleOf(user) {
   return db.roles.find((r) => r.id === user.roleId) || null;
 }
 
+function tierOf(user) {
+  const role = user && roleOf(user);
+  return role && role.tier === 'high_command' ? 'high_command' : 'member';
+}
+
+function isHighCommand(user) {
+  return !!user && tierOf(user) === 'high_command';
+}
+
+// Classifications a viewer is allowed to read.
+function visibleClassifications(user) {
+  if (!user) return ['declassified'];
+  if (isHighCommand(user)) return [...CLASSIFICATIONS];
+  return ['declassified', 'restricted'];
+}
+
+function canSeeReport(user, report) {
+  return report && visibleClassifications(user).includes(report.classification);
+}
+
 function can(user, perm) {
   const role = roleOf(user);
   return !!(role && role.permissions && role.permissions[perm]);
@@ -207,6 +258,7 @@ function publicUser(user) {
     cmdr: user.cmdr || '',
     roleId: user.roleId,
     roleName: role ? role.name : 'Unknown',
+    tier: role && role.tier === 'high_command' ? 'high_command' : 'member',
     createdAt: user.createdAt,
   };
 }
@@ -240,6 +292,23 @@ function verifyPassword(password, salt, hash) {
 }
 
 // ---------------------------------------------------------------------------
+// REF codes: OBDT-YYYYMMDD-HHMMSS-NNNN (generated once at creation, immutable)
+// ---------------------------------------------------------------------------
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function nextRef() {
+  const now = new Date();
+  const stamp =
+    `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}-` +
+    `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+  db.meta.reportSeq = (db.meta.reportSeq || 0) + 1;
+  saveJson('meta.json', db.meta);
+  return `OBDT-${stamp}-${String(db.meta.reportSeq).padStart(4, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
 // HTTP helpers
 // ---------------------------------------------------------------------------
 function sendJson(res, status, obj) {
@@ -254,6 +323,17 @@ function sendJson(res, status, obj) {
 
 function sendError(res, status, message) {
   sendJson(res, status, { error: message });
+}
+
+function sendHtml(res, status, html) {
+  const body = Buffer.from(html, 'utf8');
+  res.writeHead(status, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': body.length,
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'no-cache',
+  });
+  res.end(body);
 }
 
 function readJsonBody(req) {
@@ -299,29 +379,50 @@ function validPassword(p) {
   return isStr(p) && p.length >= 8 && p.length <= 128;
 }
 
+function optStr(v, max) {
+  if (v == null || v === '') return '';
+  if (!isStr(v)) return null;
+  const t = v.trim();
+  return t.length <= max ? t : null;
+}
+
 // Validate a report payload. Returns { ok, value } or { ok:false, error }.
+// SOS is ALWAYS forced to declassified, no matter what is submitted.
 function validateReportPayload(body) {
-  const cmdr = isStr(body.cmdr) ? body.cmdr.trim().slice(0, 64) : '';
+  const reportingCmdr = isStr(body.reportingCmdr) ? body.reportingCmdr.trim() : '';
+  const signingCmdr = optStr(body.signingCmdr, 64);
   const title = isStr(body.title) ? body.title.trim() : '';
-  const classification = body.classification;
   const type = body.type;
   const bodyText = isStr(body.body) ? body.body : '';
+  const sector = optStr(body.sector, 200);
+  const directedTo = optStr(body.directedTo, 200);
 
-  if (!title || title.length > 200) return { ok: false, error: 'Title is required (max 200 chars).' };
-  if (!CLASSIFICATIONS.includes(classification))
-    return { ok: false, error: 'Invalid classification.' };
+  if (!reportingCmdr || reportingCmdr.length > 64)
+    return { ok: false, error: 'Reporting CMDR is required (max 64 chars).' };
+  if (signingCmdr === null) return { ok: false, error: 'Signing CMDR is too long (max 64 chars).' };
+  if (!title || title.length > 200) return { ok: false, error: 'Report title is required (max 200 chars).' };
   if (!REPORT_TYPES.includes(type)) return { ok: false, error: 'Invalid report type.' };
   if (!bodyText.trim() || bodyText.length > 20000)
     return { ok: false, error: 'Report body is required (max 20000 chars).' };
+  if (sector === null) return { ok: false, error: 'Sector is too long (max 200 chars).' };
+  if (directedTo === null) return { ok: false, error: 'Directed To is too long (max 200 chars).' };
 
-  let subtype = null;
-  let recipient = null;
+  let classification = body.classification;
+  if (type === 'SOS') {
+    // SOS transmissions are always declassified, regardless of what was submitted.
+    classification = 'declassified';
+  } else if (!CLASSIFICATIONS.includes(classification)) {
+    return { ok: false, error: 'Invalid classification.' };
+  }
+
+  let subtype = '';
+  let recipient = '';
 
   if (type === 'Intelligence Report') {
-    if (!SUBTYPES[type].includes(body.subtype))
+    if (!isStr(body.subtype) || !SUBTYPES[type].includes(body.subtype))
       return { ok: false, error: 'A valid intelligence subtype is required.' };
     subtype = body.subtype;
-  } else if (body.subtype != null && body.subtype !== '') {
+  } else if (isStr(body.subtype) && body.subtype !== '') {
     return { ok: false, error: 'Subtype is only valid for Intelligence Reports.' };
   }
 
@@ -329,18 +430,21 @@ function validateReportPayload(body) {
     recipient = isStr(body.recipient) ? body.recipient.trim() : '';
     if (!recipient || recipient.length > 200)
       return { ok: false, error: 'Recipient party is required (max 200 chars).' };
-  } else if (body.recipient != null && String(body.recipient).trim() !== '') {
+  } else if (isStr(body.recipient) && body.recipient.trim() !== '') {
     return { ok: false, error: 'Recipient party is only valid for Diplomatic Communiques.' };
   }
 
-  return { ok: true, value: { cmdr, title, classification, type, subtype, recipient, body: bodyText } };
+  return {
+    ok: true,
+    value: { reportingCmdr, signingCmdr, title, classification, type, subtype, recipient, sector, directedTo, body: bodyText },
+  };
 }
 
 function visibleReports(user) {
-  const list = user && can(user, 'view_classified')
-    ? db.reports
-    : db.reports.filter((r) => r.classification === 'UNCLASSIFIED');
-  return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const allowed = visibleClassifications(user);
+  return db.reports
+    .filter((r) => allowed.includes(r.classification))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 function applyReportFilters(list, query) {
@@ -354,15 +458,154 @@ function applyReportFilters(list, query) {
       (r) =>
         r.title.toLowerCase().includes(q) ||
         r.body.toLowerCase().includes(q) ||
-        (r.cmdr || '').toLowerCase().includes(q)
+        (r.reportingCmdr || '').toLowerCase().includes(q) ||
+        (r.ref || '').toLowerCase().includes(q)
     );
   }
   return out;
 }
 
 function publicReport(r) {
-  const { id, cmdr, title, classification, type, subtype, recipient, body, authorUsername, createdAt, updatedAt } = r;
-  return { id, cmdr, title, classification, type, subtype, recipient, body, authorUsername, createdAt, updatedAt };
+  return {
+    id: r.id,
+    ref: r.ref || null,
+    reportingCmdr: r.reportingCmdr || r.cmdr || '',
+    signingCmdr: r.signingCmdr || '',
+    title: r.title,
+    classification: r.classification,
+    type: r.type,
+    subtype: r.subtype || '',
+    recipient: r.recipient || '',
+    sector: r.sector || '',
+    directedTo: r.directedTo || '',
+    body: r.body,
+    authorUsername: r.authorUsername,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Permalink page (/archive/<REF>) — server-rendered focused reference view
+// ---------------------------------------------------------------------------
+const escHtml = (s) =>
+  String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const PERMA_CSS = `
+:root{--bg0:#03080f;--line:#123a5e;--line-bright:#1e5a8f;--cyan:#46c8ff;--cyan-bright:#aee7ff;
+--text:#c9e8ff;--muted:#5f87a8;--faint:#33506b;--green:#4fe08a;--amber:#ffb454;--red:#ff5470;
+--mono:"Cascadia Code","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#03080f;color:#c9e8ff;font-family:var(--mono);font-size:14px;line-height:1.6;min-height:100vh;
+display:flex;align-items:center;justify-content:center;padding:32px 16px;
+background-image:radial-gradient(ellipse at 50% -10%,#0a2038 0%,#03080f 60%)}
+#fx-scanlines{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.5;
+background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)}
+.card{border:1px solid var(--line-bright);background:rgba(6,18,31,.92);max-width:760px;width:100%;
+box-shadow:0 0 40px rgba(70,200,255,.10);position:relative;z-index:1}
+.banner{padding:14px 20px;letter-spacing:4px;font-size:13px;text-align:center;border-bottom:1px solid var(--line-bright)}
+.banner.sos{background:rgba(255,84,112,.10);color:var(--red);border-bottom:1px solid #7a2c3d}
+.banner.cls{background:rgba(70,200,255,.06);color:var(--cyan-bright)}
+.body{padding:28px}
+h1{font-size:20px;color:var(--cyan-bright);letter-spacing:2px;margin:8px 0 4px;font-weight:normal}
+h1.sos{color:var(--red)}
+.refline{color:var(--muted);font-size:12px;letter-spacing:2px;margin-bottom:18px}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:20px}
+.meta div{border:1px solid var(--line);padding:8px 12px;background:rgba(4,12,22,.6)}
+.k{font-size:10px;letter-spacing:3px;color:var(--muted)}
+.v{font-size:13px}
+.text{white-space:pre-wrap;border:1px solid var(--line);padding:18px;background:#030a14;margin-bottom:20px}
+.sign{color:var(--muted);font-size:13px;margin-bottom:24px}
+a.ret{display:inline-block;color:var(--cyan);border:1px solid #1e5a8f;padding:10px 22px;text-decoration:none;
+letter-spacing:2px;font-size:13px}
+a.ret:hover{background:rgba(70,200,255,.12);border-color:var(--cyan)}
+.denied{text-align:center;padding:20px}
+.denied .code{font-size:16px;letter-spacing:3px;color:var(--amber);margin:16px 0}
+.stamp{border:3px double var(--cyan);padding:10px 26px;color:var(--cyan-bright);letter-spacing:6px;font-size:15px;
+display:inline-block;margin-bottom:20px;transform:rotate(-2deg)}`;
+
+function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref }) {
+  const meta = metaRows
+    .map(([k, v]) => `<div><div class="k">${escHtml(k)}</div><div class="v">${escHtml(v)}</div></div>`)
+    .join('');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Obsidian Directorate — Transmission</title><style>${PERMA_CSS}</style></head><body>
+<div id="fx-scanlines"></div><div class="card">
+<div class="banner ${bannerClass}">${escHtml(bannerText)}</div>
+<div class="body">${titleHtml}${refLine}<div class="meta">${meta}</div>
+<div class="text">${bodyHtml}</div>${signHtml}
+<div style="margin-top:8px"><a class="ret" href="${backHref}">&larr; RETURN TO ARCHIVE</a></div>
+</div></div></body></html>`;
+}
+
+function permaDeniedPage(message) {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Obsidian Directorate — Access Denied</title><style>${PERMA_CSS}</style></head><body>
+<div id="fx-scanlines"></div><div class="card"><div class="denied">
+<div class="stamp">THE OBSIDIAN DIRECTORATE</div>
+<div class="code">${escHtml(message)}</div>
+<div style="color:var(--muted);font-size:13px;margin-bottom:24px">This transmission reference is beyond your current clearance.</div>
+<div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
+</div></div></body></html>`;
+}
+
+// Resolve a permalink request: { status, report?, denial? }
+function resolveRef(ref, user) {
+  const report = db.reports.find((r) => r.ref === ref);
+  if (!report) return { status: 404, denial: 'REFERENCE NOT FOUND' };
+  if (!canSeeReport(user, report)) {
+    if (report.classification === 'restricted')
+      return { status: 403, denial: 'RESTRICTED — MEMBER SIGN-IN REQUIRED' };
+    return { status: 403, denial: 'CLASSIFIED — HIGH COMMAND REQUIRED' };
+  }
+  return { status: 200, report };
+}
+
+function servePermalink(req, res, ref) {
+  const session = getSession(req);
+  const user = session ? session.user : null;
+  const result = resolveRef(ref, user);
+  if (result.status !== 200) {
+    return sendHtml(res, result.status, permaDeniedPage(result.denial));
+  }
+  const r = publicReport(result.report);
+  const isSos = r.type === 'SOS';
+  const bannerText = isSos
+    ? 'THE OBSIDIAN DIRECTORATE — URGENT TRANSMISSION'
+    : 'THE OBSIDIAN DIRECTORATE — CLASSIFIED TRANSMISSION';
+  const metaRows = [
+    ['TITLE', r.title],
+    ['REPORT TYPE', r.subtype ? `${r.type} / ${r.subtype}` : r.type],
+    ['FILED BY', r.reportingCmdr],
+  ];
+  if (r.sector) metaRows.push(['SECTOR', r.sector]);
+  if (r.directedTo) metaRows.push(['DIRECTED TO', r.directedTo]);
+  if (r.recipient) metaRows.push(['RECIPIENT PARTY', r.recipient]);
+  metaRows.push(['CLASSIFICATION', r.classification.toUpperCase()]);
+  metaRows.push(['FILED', new Date(r.createdAt).toLocaleString()]);
+  const signHtml = r.signingCmdr
+    ? `<div class="sign"><b>Signed,</b><br>CMDR ${escHtml(r.signingCmdr)}<br><i>The Obsidian Directorate</i></div>`
+    : '';
+  return sendHtml(
+    res,
+    200,
+    permaPage({
+      bannerClass: isSos ? 'sos' : 'cls',
+      bannerText,
+      titleHtml: `<h1 class="${isSos ? 'sos' : ''}">${escHtml(r.title)}</h1>`,
+      refLine: `<div class="refline">REF: ${escHtml(r.ref)} &nbsp;|&nbsp; CLASSIFICATION: ${escHtml(r.classification.toUpperCase())}</div>`,
+      metaRows,
+      bodyHtml: escHtml(r.body),
+      signHtml,
+      backHref: '/',
+    })
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -453,11 +696,20 @@ async function handleApi(req, res, pathname, query) {
 
   // -- Reports -------------------------------------------------------------
   if (req.method === 'GET' && pathname === '/api/declassified') {
-    // PUBLIC: UNCLASSIFIED reports only, no auth required.
+    // PUBLIC: declassified reports only, no auth required.
     const list = db.reports
-      .filter((r) => r.classification === 'UNCLASSIFIED')
+      .filter((r) => r.classification === 'declassified')
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return sendJson(res, 200, { reports: applyReportFilters(list, query).map(publicReport) });
+  }
+
+  const refApiMatch = pathname.match(/^\/api\/reports\/ref\/(.+)$/);
+  if (refApiMatch && req.method === 'GET') {
+    const result = resolveRef(decodeURIComponent(refApiMatch[1]), user);
+    if (result.status !== 200) {
+      return sendError(res, result.status, result.denial);
+    }
+    return sendJson(res, 200, { report: publicReport(result.report) });
   }
 
   if (req.method === 'GET' && pathname === '/api/reports') {
@@ -473,6 +725,7 @@ async function handleApi(req, res, pathname, query) {
     const now = new Date().toISOString();
     const report = {
       id: rid(),
+      ref: nextRef(),
       ...v.value,
       authorId: user.id,
       authorUsername: user.username,
@@ -487,10 +740,7 @@ async function handleApi(req, res, pathname, query) {
   const reportIdMatch = pathname.match(/^\/api\/reports\/([0-9a-f]{24})$/);
   if (reportIdMatch) {
     const report = db.reports.find((r) => r.id === reportIdMatch[1]);
-    const canSee =
-      report &&
-      (report.classification === 'UNCLASSIFIED' || (user && can(user, 'view_classified')));
-    if (!canSee) return sendError(res, 404, 'Report not found.');
+    if (!canSeeReport(user, report)) return sendError(res, 404, 'Report not found.');
 
     if (req.method === 'GET') {
       return sendJson(res, 200, { report: publicReport(report) });
@@ -503,6 +753,7 @@ async function handleApi(req, res, pathname, query) {
       const body = await readJsonBody(req);
       const v = validateReportPayload(body);
       if (!v.ok) return sendError(res, 400, v.error);
+      // REF and createdAt are immutable — revisions preserve the original filing.
       Object.assign(report, v.value, { updatedAt: new Date().toISOString() });
       saveJson('reports.json', db.reports);
       return sendJson(res, 200, { report: publicReport(report) });
@@ -526,9 +777,10 @@ async function handleApi(req, res, pathname, query) {
       if (!name || name.length > 40) return sendError(res, 400, 'Role name is required (max 40 chars).');
       if (db.roles.some((r) => r.name.toLowerCase() === name.toLowerCase()))
         return sendError(res, 409, 'A role with that name already exists.');
+      const tier = body.tier === 'high_command' ? 'high_command' : 'member';
       const permissions = {};
       for (const p of PERMISSIONS) permissions[p] = !!(body.permissions && body.permissions[p]);
-      const role = { id: rid(), name, permissions };
+      const role = { id: rid(), name, tier, permissions };
       db.roles.push(role);
       saveJson('roles.json', db.roles);
       return sendJson(res, 201, { role });
@@ -547,6 +799,13 @@ async function handleApi(req, res, pathname, query) {
       if (db.roles.some((r) => r.id !== role.id && r.name.toLowerCase() === name.toLowerCase()))
         return sendError(res, 409, 'A role with that name already exists.');
       role.name = name;
+      if (body.tier === 'member' || body.tier === 'high_command') {
+        if (role.tier === 'high_command' && body.tier === 'member') {
+          const otherHc = db.roles.some((r) => r.id !== role.id && r.tier === 'high_command');
+          if (!otherHc) return sendError(res, 400, 'Cannot demote the last High Command role.');
+        }
+        role.tier = body.tier;
+      }
       if (body.permissions && typeof body.permissions === 'object') {
         for (const p of PERMISSIONS) role.permissions[p] = !!body.permissions[p];
       }
@@ -554,9 +813,12 @@ async function handleApi(req, res, pathname, query) {
       return sendJson(res, 200, { role });
     }
     if (req.method === 'DELETE') {
-      if (role.name === 'Director') return sendError(res, 400, 'The Director role cannot be deleted.');
       if (db.users.some((u) => u.roleId === role.id))
         return sendError(res, 400, 'Role is assigned to users. Reassign them first.');
+      if (role.tier === 'high_command') {
+        const otherHc = db.roles.some((r) => r.id !== role.id && r.tier === 'high_command');
+        if (!otherHc) return sendError(res, 400, 'Cannot delete the last High Command role.');
+      }
       db.roles = db.roles.filter((r) => r.id !== role.id);
       saveJson('roles.json', db.roles);
       return sendJson(res, 200, { ok: true });
@@ -668,9 +930,13 @@ const server = http.createServer(async (req, res) => {
   const start = Date.now();
   try {
     const url = new URL(req.url, 'http://localhost');
-    if (url.pathname === '/healthz' || url.pathname.startsWith('/api/')) {
+    const pathname = url.pathname;
+    if (pathname === '/healthz' || pathname.startsWith('/api/')) {
       const query = Object.fromEntries(url.searchParams.entries());
-      await handleApi(req, res, url.pathname, query);
+      await handleApi(req, res, pathname, query);
+    } else if ((req.method === 'GET' || req.method === 'HEAD') && pathname.startsWith('/archive/')) {
+      const ref = decodeURIComponent(pathname.slice('/archive/'.length)).split('/')[0];
+      servePermalink(req, res, ref);
     } else if (req.method === 'GET' || req.method === 'HEAD') {
       serveStatic(req, res);
     } else {
