@@ -648,6 +648,7 @@ const S = {
 };
 const can = (p) => !!(S.user && rolePerms()[p]);
 const rolePerms = () => {
+  if (S.user && S.user.permissions) return S.user.permissions;
   const r = S.roles.find((x) => x.id === (S.user && S.user.roleId));
   return (r && r.permissions) || {};
 };
@@ -978,7 +979,8 @@ function renderDetail() {
   $('det-perma').textContent = r.ref ? `${location.origin}/archive/${r.ref}` : '—';
   const editable = !isGuestView() && (can('edit_report') || (S.user && r.authorUsername === S.user.username));
   $('btn-edit-report').hidden = !editable;
-  $('btn-del-report').hidden = !(can('delete_report'));
+  const deletable = !isGuestView() && (can('delete_report') || (S.user && r.authorUsername === S.user.username));
+  $('btn-del-report').hidden = !deletable;
 }
 
 /* ================= exports ================= */

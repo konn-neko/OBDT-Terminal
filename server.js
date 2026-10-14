@@ -116,16 +116,37 @@ function seedIfEmpty() {
       }
     );
   } else {
-    // Repair pass for databases seeded by older builds: ensure tier exists.
+    // Repair pass for databases seeded by older builds: ensure tier exists
+    // and backfill any missing permission keys so tab gating keeps working.
     let dirty = false;
     for (const r of db.roles) {
       if (r.tier !== 'member' && r.tier !== 'high_command') {
         r.tier = r.name === 'Director' ? 'high_command' : 'member';
         dirty = true;
       }
-      if (r.permissions && 'view_classified' in r.permissions) {
+      if (!r.permissions || typeof r.permissions !== 'object') {
+        r.permissions = {};
+        dirty = true;
+      }
+      if ('view_classified' in r.permissions) {
         delete r.permissions.view_classified;
         dirty = true;
+      }
+      const isHC = r.tier === 'high_command';
+      for (const p of PERMISSIONS) {
+        if (!(p in r.permissions)) {
+          r.permissions[p] = isHC ? true : p === 'create_report';
+          dirty = true;
+        }
+      }
+      // The Director role always carries every permission.
+      if (r.name === 'Director') {
+        for (const p of PERMISSIONS) {
+          if (r.permissions[p] !== true) {
+            r.permissions[p] = true;
+            dirty = true;
+          }
+        }
       }
     }
     // Guarantee at least one high_command role exists.
@@ -261,6 +282,7 @@ function publicUser(user) {
     roleId: user.roleId,
     roleName: role ? role.name : 'Unknown',
     tier: role && role.tier === 'high_command' ? 'high_command' : 'member',
+    permissions: role && role.permissions ? { ...role.permissions } : {},
     createdAt: user.createdAt,
   };
 }
@@ -822,7 +844,9 @@ async function handleApi(req, res, pathname, query) {
     }
 
     if (req.method === 'DELETE') {
-      if (!needPerm('delete_report')) return;
+      if (!needAuth()) return;
+      const allowed = can(user, 'delete_report') || report.authorId === user.id;
+      if (!allowed) return sendError(res, 403, 'Insufficient clearance.');
       db.reports = db.reports.filter((r) => r.id !== report.id);
       saveJson('reports.json', db.reports);
       return sendJson(res, 200, { ok: true });
