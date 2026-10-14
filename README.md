@@ -38,6 +38,21 @@ without High Command clearance opening a classified reference sees
 SOS reports are always filed as **declassified** (forced at save time) and
 render in crimson red.
 
+## Account requests
+
+There is no open self-registration. New operators request an account from the
+sign-in screen (**No clearance? Request an account**): callsign, optional CMDR
+name, a passphrase (min 8 chars), and an optional note for High Command.
+
+High Command reviews the queue in the **Requests** tab (visible only to
+High Command tier): each pending request shows callsign, CMDR, note, and filing
+date, with **Approve** and **Deny** buttons. Approving commissions the account
+with the default Operative (Member tier) role; the new operator then signs in
+with the passphrase they chose. Denying discards the request.
+
+The first-run `director` bootstrap is unaffected — the initial admin account is
+still created automatically with a random password on a fresh `data/` dir.
+
 ## Reports & REF codes
 
 Every saved report gets an immutable reference code generated once at filing:

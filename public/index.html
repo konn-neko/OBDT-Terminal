@@ -268,6 +268,16 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.err{border-color:var(--red);color:#ffb3c1;box-shadow:0 0 24px rgba(255,84,112,.3)}
 
+/* ---------- smooth HUD view transitions ---------- */
+.screen{transition:opacity .32s ease,transform .32s ease}
+.screen.screen-enter{opacity:0;transform:translateY(14px)}
+.view{transition:opacity .28s ease,transform .28s ease}
+.view.view-enter{opacity:0;transform:translateY(10px)}
+#viewflash{position:fixed;left:0;right:0;top:-22%;height:20%;pointer-events:none;z-index:90;opacity:0;
+  background:linear-gradient(to bottom,transparent,rgba(120,220,255,.16),transparent)}
+#viewflash.flash{animation:viewflash .42s ease-out}
+@keyframes viewflash{0%{top:-22%;opacity:0}18%{opacity:1}100%{top:112%;opacity:0}}
+
 @media (max-width:640px){
   .gate-frame{padding:32px 24px}
   .gate-big{font-size:22px;letter-spacing:6px}
@@ -282,6 +292,7 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
 <body>
 <div id="fx-vignette"></div>
 <div id="fx-sweep"></div>
+<div id="viewflash"></div>
 <div id="fx-scanlines"></div>
 
 <!-- BOOT GATE: required interaction before anything loads -->
@@ -348,12 +359,13 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
       <div class="tier-note" style="text-align:center">Guests may view declassified transmissions only.</div>
     </div>
     <div id="pane-register" hidden>
-      <h2>// CLEARANCE REQUEST</h2>
+      <h2>// REQUEST ACCOUNT</h2>
       <div class="field"><label>Callsign</label><input type="text" id="reg-user" autocomplete="username" spellcheck="false"></div>
       <div class="field"><label>CMDR Name (optional)</label><input type="text" id="reg-cmdr" spellcheck="false"></div>
       <div class="field"><label>Passphrase (min 8 chars)</label><input type="password" id="reg-pass" autocomplete="new-password"></div>
+      <div class="field"><label>Note for High Command (optional)</label><input type="text" id="reg-note" maxlength="500" spellcheck="false"></div>
       <div class="err" id="reg-err"></div>
-      <button class="btn primary" id="btn-register" style="width:100%">Submit Request</button>
+      <button class="btn primary" id="btn-register" style="width:100%">Transmit Request</button>
       <div style="text-align:center"><button class="linklike" id="link-login">Back to sign-in</button></div>
     </div>
   </div>
@@ -444,6 +456,12 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
         <div class="perm-grid" id="new-role-perms"></div>
       </div>
       <div id="roles-list"></div>
+    </section>
+
+    <section id="view-requests" class="view" hidden>
+      <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// ACCOUNT REQUESTS</h2>
+      <div class="tier-note" style="margin-bottom:16px">Pending clearance requests. Approving commissions the account as Operative (Member tier).</div>
+      <div id="requests-list"></div>
     </section>
   </main>
 </div>
@@ -641,9 +659,29 @@ const tierClassifications = () => isGuestView() ? ['declassified'] : (isHighComm
 /* ================= screens ================= */
 function show(id) {
   ['screen-boot-gate','screen-boot','screen-startup','screen-access','screen-app'].forEach((s) => {
-    $(s).hidden = (s !== id);
+    const el = $(s);
+    if (s === id) {
+      if (el.hidden) {
+        el.hidden = false;
+        el.classList.add('screen-enter');
+        void el.offsetWidth;
+        requestAnimationFrame(() => el.classList.remove('screen-enter'));
+      }
+    } else if (!el.hidden) {
+      el.hidden = true;
+      el.classList.remove('screen-enter');
+    }
   });
+  viewFlash();
   window.scrollTo(0, 0);
+}
+
+function viewFlash() {
+  const f = $('viewflash');
+  if (!f) return;
+  f.classList.remove('flash');
+  void f.offsetWidth;
+  f.classList.add('flash');
 }
 
 /* ================= boot sequence ================= */
@@ -758,14 +796,17 @@ async function doLogin() {
   } catch (e) { setErr('login-err', e.message); }
 }
 
-async function doRegister() {
+async function doRequest() {
   setErr('reg-err', '');
   try {
-    const { user } = await api('POST', '/api/register', {
-      username: $('reg-user').value.trim(), cmdr: $('reg-cmdr').value.trim(), password: $('reg-pass').value,
+    await api('POST', '/api/requests', {
+      username: $('reg-user').value.trim(), cmdr: $('reg-cmdr').value.trim(),
+      password: $('reg-pass').value, note: $('reg-note').value.trim(),
     });
-    $('reg-pass').value = '';
-    enterApp(user, false);
+    $('reg-user').value = ''; $('reg-cmdr').value = '';
+    $('reg-pass').value = ''; $('reg-note').value = '';
+    $('pane-register').hidden = true; $('pane-login').hidden = false;
+    toast('REQUEST TRANSMITTED — HIGH COMMAND WILL REVIEW.');
   } catch (e) { setErr('reg-err', e.message); }
 }
 
@@ -803,6 +844,7 @@ function buildTabs() {
   if (can('create_report')) tabs.push({ id: 'edit', label: 'New Transmission' });
   if (can('manage_users')) tabs.push({ id: 'personnel', label: 'Personnel' });
   if (can('manage_roles')) tabs.push({ id: 'roles', label: 'Roles' });
+  if (S.user && S.user.tier === 'high_command') tabs.push({ id: 'requests', label: 'Requests' });
   const nav = $('tabs');
   nav.innerHTML = '';
   tabs.forEach((t) => {
@@ -810,7 +852,7 @@ function buildTabs() {
     b.textContent = t.label; b.dataset.view = t.id;
     b.addEventListener('click', async () => {
       if (t.id === 'edit') openEditor(null);
-      else { setView(t.id); if (t.id === 'archive') await loadArchive(); }
+      else { setView(t.id); if (t.id === 'archive') await loadArchive(); if (t.id === 'requests') await loadRequests(); }
     });
     nav.appendChild(b);
   });
@@ -818,9 +860,23 @@ function buildTabs() {
 
 function setView(name) {
   S.view = name;
-  ['archive','detail','edit','personnel','roles'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+  ['archive','detail','edit','personnel','roles','requests'].forEach((v) => {
+    const el = $('view-' + v);
+    if (v === name) {
+      if (el.hidden) {
+        el.hidden = false;
+        el.classList.add('view-enter');
+        void el.offsetWidth;
+        requestAnimationFrame(() => el.classList.remove('view-enter'));
+      }
+    } else if (!el.hidden) {
+      el.hidden = true;
+      el.classList.remove('view-enter');
+    }
+  });
   document.querySelectorAll('#tabs button').forEach((b) =>
     b.classList.toggle('active', b.dataset.view === name || (name === 'detail' && b.dataset.view === 'archive')));
+  viewFlash();
   window.scrollTo(0, 0);
 }
 
@@ -1122,6 +1178,45 @@ function renderPersonnel() {
     }));
 }
 
+/* ================= account requests ================= */
+async function loadRequests() {
+  try {
+    const { requests } = await api('GET', '/api/requests');
+    S.requests = requests;
+    renderRequests();
+  } catch (e) { toast(e.message, true); }
+}
+
+function renderRequests() {
+  const box = $('requests-list');
+  if (!S.requests || !S.requests.length) {
+    box.innerHTML = '<div class="empty">// NO PENDING REQUESTS</div>';
+    return;
+  }
+  let html = `<table class="grid"><tr><th>CALLSIGN</th><th>CMDR</th><th>NOTE</th><th>FILED</th><th></th></tr>`;
+  S.requests.forEach((r) => {
+    const filed = (() => { try { return new Date(r.createdAt).toLocaleString(); } catch { return '—'; } })();
+    html += `<tr><td>${esc(r.username)}</td><td>${esc(r.cmdr || '—')}</td><td>${esc(r.note || '—')}</td><td>${esc(filed)}</td>
+      <td class="rowline"><button class="btn small primary" data-approve="${esc(r.id)}">Approve</button>
+      <button class="btn small danger" data-deny="${esc(r.id)}">Deny</button></td></tr>`;
+  });
+  box.innerHTML = html + '</table>';
+  box.querySelectorAll('[data-approve]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      try {
+        const res = await api('POST', `/api/requests/${b.dataset.approve}/approve`);
+        toast(`Account approved — ${res.username} may now sign in.`);
+        await loadRequests();
+      } catch (e) { toast(e.message, true); }
+    }));
+  box.querySelectorAll('[data-deny]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Deny this account request?')) return;
+      try { await api('POST', `/api/requests/${b.dataset.deny}/deny`); toast('Request denied.'); await loadRequests(); }
+      catch (e) { toast(e.message, true); }
+    }));
+}
+
 /* ================= roles ================= */
 async function loadRoles() {
   try {
@@ -1215,7 +1310,7 @@ async function renderRoles() {
 function wire() {
   $('btn-login').addEventListener('click', doLogin);
   $('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-  $('btn-register').addEventListener('click', doRegister);
+  $('btn-register').addEventListener('click', doRequest);
   $('btn-guest').addEventListener('click', () => enterApp(null, true));
   $('link-register').addEventListener('click', () => { $('pane-login').hidden = true; $('pane-register').hidden = false; });
   $('link-login').addEventListener('click', () => { $('pane-register').hidden = true; $('pane-login').hidden = false; });

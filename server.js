@@ -75,6 +75,7 @@ const db = {
   reports: loadJson('reports.json', []),
   sessions: loadJson('sessions.json', {}),
   meta: loadJson('meta.json', { reportSeq: 0 }),
+  requests: loadJson('requests.json', []),
 };
 
 function saveAll() {
@@ -83,6 +84,7 @@ function saveAll() {
   saveJson('reports.json', db.reports);
   saveJson('sessions.json', db.sessions);
   saveJson('meta.json', db.meta);
+  saveJson('requests.json', db.requests);
 }
 
 function rid() {
@@ -629,43 +631,103 @@ async function handleApi(req, res, pathname, query) {
     }
     return true;
   };
+  const needHighCommand = () => {
+    if (!needAuth()) return false;
+    if (!isHighCommand(user)) {
+      sendError(res, 403, 'High Command clearance required.');
+      return false;
+    }
+    return true;
+  };
 
-  // -- Auth ---------------------------------------------------------------
-  if (req.method === 'POST' && pathname === '/api/register') {
+  // -- Account requests --------------------------------------------------
+  // PUBLIC: anyone may request an account. High Command reviews the queue.
+  if (req.method === 'POST' && pathname === '/api/requests') {
     const body = await readJsonBody(req);
     const username = isStr(body.username) ? body.username.trim() : '';
     const password = body.password;
     const cmdr = isStr(body.cmdr) ? body.cmdr.trim().slice(0, 64) : '';
+    const note = isStr(body.note) ? body.note.trim().slice(0, 500) : '';
     if (!validUsername(username))
       return sendError(res, 400, 'Username must be 3–24 chars: letters, numbers, _ or -.');
     if (!validPassword(password))
       return sendError(res, 400, 'Password must be 8–128 characters.');
-    if (db.users.some((u) => u.username.toLowerCase() === username.toLowerCase()))
-      return sendError(res, 409, 'Username is already taken.');
-
-    // First user ever becomes Director; everyone else starts as Operative.
-    const roleName = db.users.length === 0 ? 'Director' : 'Operative';
-    const role = db.roles.find((r) => r.name === roleName) || db.roles[0];
-    if (!role) return sendError(res, 500, 'No roles configured.');
+    const taken =
+      db.users.some((u) => u.username.toLowerCase() === username.toLowerCase()) ||
+      db.requests.some((r) => r.username.toLowerCase() === username.toLowerCase());
+    if (taken) return sendError(res, 409, 'Callsign is already taken or under review.');
 
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    const newUser = {
+    const passwordHash = crypto.scryptSync(password, salt, 64).toString('hex');
+    db.requests.push({
       id: rid(),
       username,
       cmdr,
+      passwordHash,
       salt,
-      hash,
-      roleId: role.id,
+      note,
       createdAt: new Date().toISOString(),
-    };
-    db.users.push(newUser);
-    const token = createSession(newUser.id);
-    saveAll();
-    setSessionCookie(res, token);
-    return sendJson(res, 201, { user: publicUser(newUser) });
+    });
+    saveJson('requests.json', db.requests);
+    return sendJson(res, 201, { ok: true });
   }
 
+  if (req.method === 'GET' && pathname === '/api/requests') {
+    if (!needHighCommand()) return;
+    const list = db.requests
+      .slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((r) => ({
+        id: r.id,
+        username: r.username,
+        cmdr: r.cmdr || '',
+        note: r.note || '',
+        createdAt: r.createdAt,
+      }));
+    return sendJson(res, 200, { requests: list });
+  }
+
+  const approveMatch = pathname.match(/^\/api\/requests\/([0-9a-f]+)\/approve$/);
+  if (req.method === 'POST' && approveMatch) {
+    if (!needHighCommand()) return;
+    const idx = db.requests.findIndex((r) => r.id === approveMatch[1]);
+    if (idx === -1) return sendError(res, 404, 'Request not found.');
+    const rq = db.requests[idx];
+    if (db.users.some((u) => u.username.toLowerCase() === rq.username.toLowerCase())) {
+      db.requests.splice(idx, 1);
+      saveJson('requests.json', db.requests);
+      return sendError(res, 409, 'Callsign is already taken.');
+    }
+    const role =
+      db.roles.find((r) => r.name === 'Operative') ||
+      db.roles.find((r) => r.tier === 'member') ||
+      db.roles[0];
+    if (!role) return sendError(res, 500, 'No roles configured.');
+    db.users.push({
+      id: rid(),
+      username: rq.username,
+      cmdr: rq.cmdr || '',
+      salt: rq.salt,
+      hash: rq.passwordHash,
+      roleId: role.id,
+      createdAt: new Date().toISOString(),
+    });
+    db.requests.splice(idx, 1);
+    saveJson('users.json', db.users);
+    saveJson('requests.json', db.requests);
+    return sendJson(res, 200, { ok: true, username: rq.username });
+  }
+
+  const denyMatch = pathname.match(/^\/api\/requests\/([0-9a-f]+)\/deny$/);
+  if (req.method === 'POST' && denyMatch) {
+    if (!needHighCommand()) return;
+    const idx = db.requests.findIndex((r) => r.id === denyMatch[1]);
+    if (idx === -1) return sendError(res, 404, 'Request not found.');
+    db.requests.splice(idx, 1);
+    saveJson('requests.json', db.requests);
+    return sendJson(res, 200, { ok: true });
+  }
+  // -- Auth ---------------------------------------------------------------
   if (req.method === 'POST' && pathname === '/api/login') {
     const body = await readJsonBody(req);
     const username = isStr(body.username) ? body.username.trim() : '';
