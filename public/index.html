@@ -740,22 +740,22 @@ function revealField(el, show) {
 
 /* ================= boot sequence ================= */
 const BOOT_LINES = [
-  ['> OBDT-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 216],
-  ['> Mounting secure archive volume ... <span class="ok">OK</span>', 468],
-  ['> Uplink: settlement relay ... <span class="ok">LINK ESTABLISHED</span>', 684],
-  ['> Verifying clearance matrix ... <span class="ok">OK</span>', 540],
-  ['> Calibrating HUD projectors ... <span class="ok">OK</span>', 468],
-  ['> Sweeping for listening devices ... <span class="warn">NONE FOUND</span>', 756],
-  ['> Loading transmission codecs ... <span class="ok">OK</span>', 432],
-  ['> <span class="dim">All systems nominal. Awaiting operator.</span>', 540],
+  ['> OBDT-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 280],
+  ['> Mounting secure archive volume ... <span class="ok">OK</span>', 610],
+  ['> Uplink: settlement relay ... <span class="ok">LINK ESTABLISHED</span>', 890],
+  ['> Verifying clearance matrix ... <span class="ok">OK</span>', 700],
+  ['> Calibrating HUD projectors ... <span class="ok">OK</span>', 610],
+  ['> Sweeping for listening devices ... <span class="warn">NONE FOUND</span>', 980],
+  ['> Loading transmission codecs ... <span class="ok">OK</span>', 560],
+  ['> <span class="dim">All systems nominal. Awaiting operator.</span>', 700],
 ];
 // Alternate BIOS lines shown while the squadron is in lockdown.
 const BOOT_LINES_LOCKDOWN = [
-  ['> OBDT-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 216],
-  ['> Uplink: settlement relay ... <span class="warn">DEGRADED</span>', 684],
-  ['> Report intake manifold ... <span class="bad">SUSPENDED</span>', 540],
-  ['> Verifying clearance matrix ... <span class="ok">OK</span>', 540],
-  ['> <span class="bad">⚠ SQUADRON LOCKDOWN ACTIVE</span>', 756],
+  ['> OBDT-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 280],
+  ['> Uplink: settlement relay ... <span class="warn">DEGRADED</span>', 890],
+  ['> Report intake manifold ... <span class="bad">SUSPENDED</span>', 700],
+  ['> Verifying clearance matrix ... <span class="ok">OK</span>', 700],
+  ['> <span class="bad">⚠ SQUADRON LOCKDOWN ACTIVE</span>', 980],
 ];
 function runBoot() {
   show('screen-boot');
