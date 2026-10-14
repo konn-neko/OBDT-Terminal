@@ -7,7 +7,7 @@
 <style>
 /* ============ OBSIDIAN DIRECTORATE // BLUE HUD TERMINAL ============ */
 :root{
-  --bg0:#03080f; --bg1:#06121f; --bg2:#0a1c33; --bg3:#0e2540;
+  --bg0:#03080f; --bg1:#06121f; --bg2:#0a1c33; --bg3:#0e2540; --bg-glow:#0a2038;
   --line:#123a5e; --line-bright:#1e5a8f;
   --cyan:#46c8ff; --cyan-dim:#1e7fae; --cyan-bright:#aee7ff;
   --text:#c9e8ff; --muted:#5f87a8; --faint:#33506b;
@@ -23,12 +23,13 @@
 @property --faint { syntax:'<color>'; inherits:true; initial-value:#33506b; }
 @property --line { syntax:'<color>'; inherits:true; initial-value:#123a5e; }
 @property --line-bright { syntax:'<color>'; inherits:true; initial-value:#1e5a8f; }
+@property --bg-glow { syntax:'<color>'; inherits:true; initial-value:#0a2038; }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
   background:var(--bg0); color:var(--text); font-family:var(--mono);
   font-size:14px; line-height:1.5; overflow-x:hidden;
-  background-image:radial-gradient(ellipse at 50% -10%, #0a2038 0%, var(--bg0) 60%);
+  background-image:radial-gradient(ellipse at 50% -10%, var(--bg-glow) 0%, var(--bg0) 60%);
 }
 #fx-scanlines{position:fixed;inset:0;pointer-events:none;z-index:9990;opacity:.5;
   background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);}
@@ -127,8 +128,7 @@ textarea{min-height:180px;resize:vertical;line-height:1.6}
 body.lockdown{
   --cyan:#ff5470; --cyan-dim:#a33a4d; --cyan-bright:#ffc2cd;
   --text:#ffd9e0; --muted:#c07a88; --faint:#8a4a56;
-  --line:#7a2c3d; --line-bright:#a33a4d;
-  background-image:radial-gradient(ellipse at 50% -10%, #3a0a14 0%, var(--bg0) 60%);
+  --line:#7a2c3d; --line-bright:#a33a4d; --bg-glow:#3a0a14;
 }
 /* ---------- lockdown toggle arm/transition states ---------- */
 #btn-lockdown-toggle.armed{animation:armpulse .7s ease-in-out infinite}
@@ -945,9 +945,9 @@ async function refreshLockdown() {
   updateLockdownUI();
 }
 /* ---------- smooth blue<->red theme melt (JS-driven, works everywhere) ---------- */
-const THEME_VARS = ['--cyan','--cyan-dim','--cyan-bright','--text','--muted','--faint','--line','--line-bright'];
-const THEME_BLUE = {'--cyan':'#46c8ff','--cyan-dim':'#1e7fae','--cyan-bright':'#aee7ff','--text':'#c9e8ff','--muted':'#5f87a8','--faint':'#33506b','--line':'#123a5e','--line-bright':'#1e5a8f'};
-const THEME_RED = {'--cyan':'#ff5470','--cyan-dim':'#a33a4d','--cyan-bright':'#ffc2cd','--text':'#ffd9e0','--muted':'#c07a88','--faint':'#8a4a56','--line':'#7a2c3d','--line-bright':'#a33a4d'};
+const THEME_VARS = ['--cyan','--cyan-dim','--cyan-bright','--text','--muted','--faint','--line','--line-bright','--bg-glow'];
+const THEME_BLUE = {'--cyan':'#46c8ff','--cyan-dim':'#1e7fae','--cyan-bright':'#aee7ff','--text':'#c9e8ff','--muted':'#5f87a8','--faint':'#33506b','--line':'#123a5e','--line-bright':'#1e5a8f','--bg-glow':'#0a2038'};
+const THEME_RED = {'--cyan':'#ff5470','--cyan-dim':'#a33a4d','--cyan-bright':'#ffc2cd','--text':'#ffd9e0','--muted':'#c07a88','--faint':'#8a4a56','--line':'#7a2c3d','--line-bright':'#a33a4d','--bg-glow':'#3a0a14'};
 let meltRaf = null;
 function parseColor(s) {
   s = String(s || '').trim();
