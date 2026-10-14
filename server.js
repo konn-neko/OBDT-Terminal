@@ -552,13 +552,18 @@ a.ret:hover{background:rgba(70,200,255,.12);border-color:var(--cyan)}
 .stamp{border:3px double var(--cyan);padding:10px 26px;color:var(--cyan-bright);letter-spacing:6px;font-size:15px;
 display:inline-block;margin-bottom:20px;transform:rotate(-2deg)}`;
 
-function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref }) {
+function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor }) {
   const meta = metaRows
     .map(([k, v]) => `<div><div class="k">${escHtml(k)}</div><div class="v">${escHtml(v)}</div></div>`)
     .join('');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Obsidian Directorate — Transmission</title><style>${PERMA_CSS}</style></head><body>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Obsidian Directorate">
+<meta property="og:title" content="${escHtml(ogTitle)}">
+<meta property="og:description" content="${escHtml(ogDescription)}">
+<meta name="theme-color" content="${escHtml(themeColor || '#46c8ff')}">
+<title>${escHtml(ogTitle)} — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body>
 <div id="fx-scanlines"></div><div class="card">
 <div class="banner ${bannerClass}">${escHtml(bannerText)}</div>
 <div class="body">${titleHtml}${refLine}<div class="meta">${meta}</div>
@@ -568,9 +573,24 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 }
 
 function permaDeniedPage(message) {
+  const isRestricted = message.includes('RESTRICTED');
+  const isClassified = message.includes('CLASSIFIED');
+  const ogTitle = isRestricted
+    ? 'Restricted Transmission — The Obsidian Directorate'
+    : isClassified
+      ? 'Classified Transmission — The Obsidian Directorate'
+      : 'Transmission Not Found — The Obsidian Directorate';
+  const ogDescription = (isRestricted || isClassified)
+    ? `${message} — Sign in to the terminal to view this transmission.`
+    : 'This transmission reference does not exist.';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Obsidian Directorate — Access Denied</title><style>${PERMA_CSS}</style></head><body>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Obsidian Directorate">
+<meta property="og:title" content="${escHtml(ogTitle)}">
+<meta property="og:description" content="${escHtml(ogDescription)}">
+<meta name="theme-color" content="#ffb454">
+<title>${escHtml(ogTitle)}</title><style>${PERMA_CSS}</style></head><body>
 <div id="fx-scanlines"></div><div class="card"><div class="denied">
 <div class="stamp">THE OBSIDIAN DIRECTORATE</div>
 <div class="code">${escHtml(message)}</div>
@@ -616,6 +636,13 @@ function servePermalink(req, res, ref) {
   const signHtml = r.signingCmdr
     ? `<div class="sign"><b>Signed,</b><br>CMDR ${escHtml(r.signingCmdr)}<br><i>The Obsidian Directorate</i></div>`
     : '';
+  // Discord embed gist (declassified only — crawlers are unauthenticated guests).
+  const d = new Date(r.createdAt);
+  const dateStr = `${String(d.getDate()).padStart(2, '0')} ${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getMonth()]} ${d.getFullYear()}`;
+  const typeStr = r.subtype ? `${r.type} / ${r.subtype}` : r.type;
+  const bodySnippet = r.body.length > 200 ? r.body.slice(0, 200).trimEnd() + '…' : r.body;
+  const ogTitle = `${r.title} — ${typeStr}`;
+  const ogDescription = `${typeStr} · Filed by ${r.reportingCmdr} · ${dateStr} · REF ${r.ref}\n${bodySnippet}`;
   return sendHtml(
     res,
     200,
@@ -628,6 +655,9 @@ function servePermalink(req, res, ref) {
       bodyHtml: escHtml(r.body),
       signHtml,
       backHref: '/',
+      ogTitle,
+      ogDescription,
+      themeColor: isSos ? '#ff5470' : '#46c8ff',
     })
   );
 }

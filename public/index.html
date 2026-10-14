@@ -278,6 +278,10 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
 #viewflash.flash{animation:viewflash .42s ease-out}
 @keyframes viewflash{0%{top:-22%;opacity:0}18%{opacity:1}100%{top:112%;opacity:0}}
 
+/* ---------- conditional field reveal (subtype / recipient) ---------- */
+#wrap-subtype,#wrap-recipient{overflow:hidden;max-height:220px;transition:opacity .28s ease,transform .28s ease,max-height .32s ease}
+#wrap-subtype.reveal-enter,#wrap-recipient.reveal-enter{opacity:0;transform:translateY(-10px);max-height:0}
+
 @media (max-width:640px){
   .gate-frame{padding:32px 24px}
   .gate-big{font-size:22px;letter-spacing:6px}
@@ -685,6 +689,19 @@ function viewFlash() {
   f.classList.add('flash');
 }
 
+function revealField(el, show) {
+  if (!el) return;
+  if (show && el.hidden) {
+    el.hidden = false;
+    el.classList.add('reveal-enter');
+    void el.offsetWidth;
+    requestAnimationFrame(() => el.classList.remove('reveal-enter'));
+  } else if (!show && !el.hidden) {
+    el.hidden = true;
+    el.classList.remove('reveal-enter');
+  }
+}
+
 /* ================= boot sequence ================= */
 const BOOT_LINES = [
   ['> OBDT-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 120],
@@ -1074,8 +1091,8 @@ function initEditorDropdowns() {
 
 function syncTypeFields() {
   const t = S.dd.repType.value;
-  $('wrap-subtype').hidden = (t !== 'Intelligence Report');
-  $('wrap-recipient').hidden = (t !== 'Diplomatic Communique');
+  revealField($('wrap-subtype'), t === 'Intelligence Report');
+  revealField($('wrap-recipient'), t === 'Diplomatic Communique');
   if (t === 'SOS') {
     // SOS is always declassified — lock the classification dropdown.
     S.dd.repCls.select('declassified');
