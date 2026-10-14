@@ -14,12 +14,23 @@
   --green:#4fe08a; --amber:#ffb454; --orange:#ff8a4d; --red:#ff5470;
   --mono:"Cascadia Code","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
 }
+/* registered as animatable so the lockdown theme melts blue<->red instead of snapping */
+@property --cyan { syntax:'<color>'; inherits:true; initial-value:#46c8ff; }
+@property --cyan-dim { syntax:'<color>'; inherits:true; initial-value:#1e7fae; }
+@property --cyan-bright { syntax:'<color>'; inherits:true; initial-value:#aee7ff; }
+@property --text { syntax:'<color>'; inherits:true; initial-value:#c9e8ff; }
+@property --muted { syntax:'<color>'; inherits:true; initial-value:#5f87a8; }
+@property --faint { syntax:'<color>'; inherits:true; initial-value:#33506b; }
+@property --line { syntax:'<color>'; inherits:true; initial-value:#123a5e; }
+@property --line-bright { syntax:'<color>'; inherits:true; initial-value:#1e5a8f; }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
   background:var(--bg0); color:var(--text); font-family:var(--mono);
   font-size:14px; line-height:1.5; overflow-x:hidden;
   background-image:radial-gradient(ellipse at 50% -10%, #0a2038 0%, var(--bg0) 60%);
+  transition:--cyan 1.6s ease,--cyan-dim 1.6s ease,--cyan-bright 1.6s ease,--text 1.6s ease,
+    --muted 1.6s ease,--faint 1.6s ease,--line 1.6s ease,--line-bright 1.6s ease;
 }
 #fx-scanlines{position:fixed;inset:0;pointer-events:none;z-index:9990;opacity:.5;
   background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);}
