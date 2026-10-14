@@ -58,7 +58,7 @@ body{
 .ring.r3{inset:38px;border-style:dotted;animation:spin 9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #boot-log{flex:1;padding:28px;font-size:13px;white-space:pre-wrap;color:var(--text);overflow:hidden}
-#boot-log .ok{color:var(--green)} #boot-log .warn{color:var(--amber)} #boot-log .dim{color:var(--muted)}
+#boot-log .ok{color:var(--green)} #boot-log .warn{color:var(--amber)} #boot-log .bad{color:var(--red)} #boot-log .dim{color:var(--muted)}
 .boot-bar-wrap{margin:0 28px 8px;border:1px solid var(--line-bright);height:22px;position:relative;background:#04101d}
 #boot-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));
   box-shadow:0 0 14px rgba(70,200,255,.7);transition:width .25s}
@@ -110,6 +110,10 @@ textarea{min-height:180px;resize:vertical;line-height:1.6}
   letter-spacing:4px;font-size:12px;transform:rotate(-1deg);white-space:nowrap}
 .topbar .who{margin-left:auto;color:var(--muted);font-size:12px;letter-spacing:1px}
 .topbar .who b{color:var(--cyan)}
+.lockdown-banner{background:rgba(255,84,112,.13);border-bottom:1px solid var(--red);color:var(--red);
+  text-align:center;letter-spacing:3px;font-size:12px;padding:10px 16px;position:relative;z-index:55;
+  animation:lockblink 2.4s ease-in-out infinite}
+@keyframes lockblink{0%,100%{background:rgba(255,84,112,.13)}50%{background:rgba(255,84,112,.22)}}
 nav.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);background:rgba(4,12,22,.9);
   position:sticky;top:57px;z-index:49;overflow-x:auto}
 nav.tabs button{font-family:var(--mono);font-size:12px;letter-spacing:3px;text-transform:uppercase;
@@ -349,6 +353,7 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
 
 <!-- ACCESS -->
 <div id="screen-access" class="screen" hidden>
+  <div class="lockdown-banner" hidden>⚠ SQUADRON LOCKDOWN — MEMBER TRANSMISSIONS SUSPENDED ⚠</div>
   <div class="stamp">THE OBSIDIAN DIRECTORATE</div>
   <div class="panel">
     <div id="pane-login">
@@ -383,6 +388,7 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
     <div class="who" id="who-line"></div>
     <button class="btn small" id="btn-logout">Logout</button>
   </div>
+  <div class="lockdown-banner" hidden>⚠ SQUADRON LOCKDOWN — MEMBER TRANSMISSIONS SUSPENDED ⚠</div>
   <nav class="tabs" id="tabs"></nav>
   <main>
     <section id="view-archive" class="view" hidden>
@@ -466,6 +472,18 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
       <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// ACCOUNT REQUESTS</h2>
       <div class="tier-note" style="margin-bottom:16px">Pending clearance requests. Approving commissions the account as Operative (Member tier).</div>
       <div id="requests-list"></div>
+    </section>
+
+    <section id="view-management" class="view" hidden>
+      <h2 style="font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:18px;font-weight:normal">// SQUADRON MANAGEMENT</h2>
+      <div class="role-card">
+        <h3>Squadron Lockdown</h3>
+        <div class="tier-note" style="margin-bottom:16px">When lockdown is active, members cannot file reports — only High Command may. Logins, guest access, and viewing are unaffected.</div>
+        <div class="rowline" style="align-items:center;gap:20px">
+          <span id="lockdown-status" style="font-size:14px;letter-spacing:3px">● STANDBY</span>
+          <button class="btn danger" id="btn-lockdown-toggle">INITIATE LOCKDOWN</button>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -648,7 +666,7 @@ const S = {
   reports: [], roles: [], users: [],
   filters: { q:'', type:'', classification:'' },
   currentReport: null, editingId: null,
-  dd: {},
+  dd: {}, lockdown: false,
 };
 const can = (p) => !!(S.user && rolePerms()[p]);
 const rolePerms = () => {
@@ -713,9 +731,18 @@ const BOOT_LINES = [
   ['> Loading transmission codecs ... <span class="ok">OK</span>', 240],
   ['> <span class="dim">All systems nominal. Awaiting operator.</span>', 300],
 ];
+// Alternate BIOS lines shown while the squadron is in lockdown.
+const BOOT_LINES_LOCKDOWN = [
+  ['> OBDT-TERMINAL BIOS v2.4 ... <span class="ok">OK</span>', 120],
+  ['> Uplink: settlement relay ... <span class="warn">DEGRADED</span>', 380],
+  ['> Report intake manifold ... <span class="bad">SUSPENDED</span>', 300],
+  ['> Verifying clearance matrix ... <span class="ok">OK</span>', 300],
+  ['> <span class="bad">⚠ SQUADRON LOCKDOWN ACTIVE</span>', 420],
+];
 function runBoot() {
   show('screen-boot');
   const log = $('boot-log'), bar = $('boot-bar'), pct = $('boot-pct');
+  const lines = S.lockdown ? BOOT_LINES_LOCKDOWN : BOOT_LINES;
   log.innerHTML = ''; bar.style.width = '0%'; pct.textContent = '0%';
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return finishBoot(); }
   let i = 0, done = false;
@@ -725,13 +752,13 @@ function runBoot() {
   document.addEventListener('keydown', escHandler);
   (function step() {
     if (done) return;
-    if (i >= BOOT_LINES.length) { setTimeout(finish, 450); return; }
-    const [html, delay] = BOOT_LINES[i];
+    if (i >= lines.length) { setTimeout(finish, 450); return; }
+    const [html, delay] = lines[i];
     const div = document.createElement('div');
     div.innerHTML = html;
     log.appendChild(div);
     i++;
-    const p = Math.round((i / BOOT_LINES.length) * 100);
+    const p = Math.round((i / lines.length) * 100);
     bar.style.width = p + '%'; pct.textContent = p + '%';
     setTimeout(step, delay);
   })();
@@ -832,6 +859,7 @@ async function enterApp(user, guest) {
   S.user = user || null; S.guest = !!guest;
   show('screen-app');
   updateWho();
+  await refreshLockdown();
   buildTabs();
   initFilterDropdowns();
   if (can('manage_roles')) { await loadRoles(); }
@@ -854,15 +882,20 @@ async function doLogout() {
   S.user = null; S.guest = false; S.reports = [];
   $('login-user').value = ''; $('login-pass').value = '';
   show('screen-access');
+  await refreshLockdown();
 }
 
 /* ================= tabs & views ================= */
 function buildTabs() {
   const tabs = [{ id: 'archive', label: 'Archive' }];
-  if (can('create_report')) tabs.push({ id: 'edit', label: 'New Transmission' });
+  const hc = !!(S.user && S.user.tier === 'high_command');
+  if (can('create_report') && (!S.lockdown || hc)) tabs.push({ id: 'edit', label: 'New Transmission' });
   if (can('manage_users')) tabs.push({ id: 'personnel', label: 'Personnel' });
   if (can('manage_roles')) tabs.push({ id: 'roles', label: 'Roles' });
-  if (S.user && S.user.tier === 'high_command') tabs.push({ id: 'requests', label: 'Requests' });
+  if (hc) {
+    tabs.push({ id: 'requests', label: 'Requests' });
+    tabs.push({ id: 'management', label: 'Management' });
+  }
   const nav = $('tabs');
   nav.innerHTML = '';
   tabs.forEach((t) => {
@@ -870,15 +903,46 @@ function buildTabs() {
     b.textContent = t.label; b.dataset.view = t.id;
     b.addEventListener('click', async () => {
       if (t.id === 'edit') openEditor(null);
-      else { setView(t.id); if (t.id === 'archive') await loadArchive(); if (t.id === 'requests') await loadRequests(); }
+      else { setView(t.id); if (t.id === 'archive') await loadArchive(); if (t.id === 'requests') await loadRequests(); if (t.id === 'management') await refreshLockdown(); }
     });
     nav.appendChild(b);
   });
 }
 
+/* ================= squadron lockdown ================= */
+async function refreshLockdown() {
+  try {
+    const { lockdown } = await api('GET', '/api/lockdown');
+    S.lockdown = !!lockdown;
+  } catch { S.lockdown = false; }
+  updateLockdownUI();
+}
+function updateLockdownUI() {
+  document.querySelectorAll('.lockdown-banner').forEach((el) => { el.hidden = !S.lockdown; });
+  const st = $('lockdown-status');
+  if (st) {
+    st.textContent = S.lockdown ? '● ACTIVE' : '● STANDBY';
+    st.style.color = S.lockdown ? 'var(--red)' : 'var(--green)';
+  }
+  const btn = $('btn-lockdown-toggle');
+  if (btn) {
+    btn.textContent = S.lockdown ? 'LIFT LOCKDOWN' : 'INITIATE LOCKDOWN';
+    btn.classList.toggle('danger', !S.lockdown);
+  }
+  if (S.user || S.guest) buildTabs();
+}
+async function toggleLockdown() {
+  try {
+    const { lockdown } = await api('POST', '/api/lockdown', { enabled: !S.lockdown });
+    S.lockdown = !!lockdown;
+    updateLockdownUI();
+    toast(S.lockdown ? 'SQUADRON LOCKDOWN INITIATED.' : 'Lockdown lifted. Report intake resumed.');
+  } catch (e) { toast(e.message, true); }
+}
+
 function setView(name) {
   S.view = name;
-  ['archive','detail','edit','personnel','roles','requests'].forEach((v) => {
+  ['archive','detail','edit','personnel','roles','requests','management'].forEach((v) => {
     const el = $('view-' + v);
     if (v === name) {
       if (el.hidden) {
@@ -1334,6 +1398,7 @@ function wire() {
   $('link-register').addEventListener('click', () => { $('pane-login').hidden = true; $('pane-register').hidden = false; });
   $('link-login').addEventListener('click', () => { $('pane-register').hidden = true; $('pane-login').hidden = false; });
   $('btn-logout').addEventListener('click', doLogout);
+  $('btn-lockdown-toggle').addEventListener('click', toggleLockdown);
 
   $('btn-back-archive').addEventListener('click', () => setView('archive'));
   $('flt-q').addEventListener('input', (e) => { S.filters.q = e.target.value; renderArchive(); });
@@ -1378,10 +1443,13 @@ function wire() {
 /* ================= init ================= */
 (async function init() {
   wire();
+  await refreshLockdown();
   let sessionUser = null;
   try { ({ user: sessionUser } = await api('GET', '/api/me')); } catch { /* no live session */ }
   // The gate requires one click; a live session then resumes straight into the app.
-  $('screen-boot-gate').addEventListener('click', () => {
+  $('screen-boot-gate').addEventListener('click', async () => {
+    try { const { lockdown } = await api('GET', '/api/lockdown'); S.lockdown = !!lockdown; }
+    catch { S.lockdown = false; }
     runBoot();
     if (sessionUser) {
       const iv = setInterval(() => {

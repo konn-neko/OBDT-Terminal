@@ -74,7 +74,7 @@ const db = {
   roles: loadJson('roles.json', []),
   reports: loadJson('reports.json', []),
   sessions: loadJson('sessions.json', {}),
-  meta: loadJson('meta.json', { reportSeq: 0 }),
+  meta: loadJson('meta.json', { reportSeq: 0, lockdown: false }),
   requests: loadJson('requests.json', []),
 };
 
@@ -96,6 +96,12 @@ function rid() {
 // ---------------------------------------------------------------------------
 function seedIfEmpty() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  // Ensure the lockdown flag exists on databases created before it.
+  if (typeof db.meta.lockdown !== 'boolean') {
+    db.meta.lockdown = false;
+    saveJson('meta.json', db.meta);
+  }
 
   if (db.roles.length === 0) {
     const all = Object.fromEntries(PERMISSIONS.map((p) => [p, true]));
@@ -550,9 +556,16 @@ a.ret:hover{background:rgba(70,200,255,.12);border-color:var(--cyan)}
 .denied{text-align:center;padding:20px}
 .denied .code{font-size:16px;letter-spacing:3px;color:var(--amber);margin:16px 0}
 .stamp{border:3px double var(--cyan);padding:10px 26px;color:var(--cyan-bright);letter-spacing:6px;font-size:15px;
-display:inline-block;margin-bottom:20px;transform:rotate(-2deg)}`;
+display:inline-block;margin-bottom:20px;transform:rotate(-2deg)}
+/* SOS transmissions: full crimson theme */
+body.sos-theme{--cyan:#ff5470;--cyan-bright:#ffc2cd;--text:#ffd9e0;--muted:#c07a88;--faint:#8a4a56;
+--line:#7a2c3d;--line-bright:#a33a4d;--red:#ff5470;
+background-image:radial-gradient(ellipse at 50% -10%,#3a0a14 0%,#0f0307 60%)}
+body.sos-theme .card{box-shadow:0 0 44px rgba(255,84,112,.20);background:rgba(24,7,11,.94)}
+body.sos-theme .meta div{background:rgba(20,5,9,.6)}
+body.sos-theme .text{background:#12040a}`;
 
-function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor }) {
+function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass }) {
   const meta = metaRows
     .map(([k, v]) => `<div><div class="k">${escHtml(k)}</div><div class="v">${escHtml(v)}</div></div>`)
     .join('');
@@ -563,7 +576,7 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 <meta property="og:title" content="${escHtml(ogTitle)}">
 <meta property="og:description" content="${escHtml(ogDescription)}">
 <meta name="theme-color" content="${escHtml(themeColor || '#46c8ff')}">
-<title>${escHtml(ogTitle)} — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body>
+<title>${escHtml(ogTitle)} — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="${escHtml(bodyClass || '')}">
 <div id="fx-scanlines"></div><div class="card">
 <div class="banner ${bannerClass}">${escHtml(bannerText)}</div>
 <div class="body">${titleHtml}${refLine}<div class="meta">${meta}</div>
@@ -658,6 +671,7 @@ function servePermalink(req, res, ref) {
       ogTitle,
       ogDescription,
       themeColor: isSos ? '#ff5470' : '#46c8ff',
+      bodyClass: isSos ? 'sos-theme' : '',
     })
   );
 }
@@ -779,6 +793,19 @@ async function handleApi(req, res, pathname, query) {
     saveJson('requests.json', db.requests);
     return sendJson(res, 200, { ok: true });
   }
+
+  // -- Squadron lockdown ----------------------------------------------------
+  // GET is public (boot sequence and guests need it); POST is High Command only.
+  if (req.method === 'GET' && pathname === '/api/lockdown') {
+    return sendJson(res, 200, { lockdown: !!db.meta.lockdown });
+  }
+  if (req.method === 'POST' && pathname === '/api/lockdown') {
+    if (!needHighCommand()) return;
+    const body = await readJsonBody(req);
+    db.meta.lockdown = !!body.enabled;
+    saveJson('meta.json', db.meta);
+    return sendJson(res, 200, { lockdown: db.meta.lockdown });
+  }
   // -- Auth ---------------------------------------------------------------
   if (req.method === 'POST' && pathname === '/api/login') {
     const body = await readJsonBody(req);
@@ -833,6 +860,9 @@ async function handleApi(req, res, pathname, query) {
 
   if (req.method === 'POST' && pathname === '/api/reports') {
     if (!needPerm('create_report')) return;
+    if (db.meta.lockdown && !isHighCommand(user)) {
+      return sendError(res, 403, 'SQUADRON LOCKDOWN — only High Command may file reports.');
+    }
     const body = await readJsonBody(req);
     const v = validateReportPayload(body);
     if (!v.ok) return sendError(res, 400, v.error);
