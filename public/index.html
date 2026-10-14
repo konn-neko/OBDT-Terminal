@@ -196,6 +196,70 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
 .tier-badge.high_command{color:var(--amber);border-color:var(--amber)}
 .tier-note{font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:10px}
 
+/* ---------- artifact-style startup (plays after BIOS) ---------- */
+#screen-startup{align-items:stretch;justify-content:center}
+.su-stage{position:relative;max-width:1000px;width:100%;margin:0 auto;border:1px solid var(--line-bright);
+  background:rgba(4,12,22,.92);box-shadow:0 0 60px rgba(70,200,255,.12);padding:34px 34px 22px;overflow:hidden}
+.su-stage::before,.su-stage::after{content:"";position:absolute;width:24px;height:24px;border:2px solid var(--cyan);z-index:3}
+.su-stage::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.su-stage::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.su-sweep{position:absolute;left:0;right:0;height:140px;top:-160px;pointer-events:none;opacity:.14;z-index:2;
+  background:linear-gradient(180deg,transparent,var(--cyan),transparent);
+  animation:su-sweep 3.4s linear infinite}
+@keyframes su-sweep{to{transform:translateY(1000px)}}
+.su-title{text-align:center;margin-bottom:20px}
+.su-rings{position:relative;width:min(56vmin,320px);height:min(56vmin,320px);margin:4px auto 20px}
+.su-ticks{position:absolute;inset:0;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg, var(--cyan-dim) 0deg 1.5deg, transparent 1.5deg 15deg);
+  -webkit-mask:radial-gradient(closest-side, transparent 93%, #000 93%, #000 97%, transparent 97%);
+  mask:radial-gradient(closest-side, transparent 93%, #000 93%, #000 97%, transparent 97%);
+  animation:spin 44s linear infinite}
+.su-ring{position:absolute;border-radius:50%;border:1px solid var(--line-bright)}
+.su-ring.r1{inset:9%;border-style:dashed;border-color:var(--cyan-dim);animation:spin 18s linear infinite reverse}
+.su-ring.r2{inset:22%;border-color:var(--faint);animation:spin 27s linear infinite}
+.su-ring.r3{inset:36%;border-style:dotted;border-color:var(--cyan-dim);animation:spin 12s linear infinite}
+.su-cross-h,.su-cross-v{position:absolute;background:var(--faint);opacity:.55}
+.su-cross-h{left:5%;right:5%;top:50%;height:1px}
+.su-cross-v{top:5%;bottom:5%;left:50%;width:1px}
+.su-core{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--cyan-bright);letter-spacing:8px;font-size:20px;text-shadow:0 0 16px rgba(70,200,255,.8)}
+.su-cols{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px;position:relative;z-index:2}
+.su-checks{flex:1;min-width:240px;font-size:13px}
+.su-check{display:flex;justify-content:space-between;gap:12px;padding:6px 0;
+  border-bottom:1px solid rgba(18,58,94,.5);color:var(--muted);letter-spacing:1px}
+.su-check .st{color:var(--faint);letter-spacing:2px}
+.su-check.done{color:var(--text)}
+.su-check.done .st{color:var(--green);text-shadow:0 0 8px rgba(79,224,138,.6)}
+.su-telem{flex:1;min-width:220px;font-size:12px;color:var(--cyan-dim);letter-spacing:1px;
+  border:1px solid var(--line);padding:12px 16px;background:rgba(3,10,20,.7);align-self:flex-start}
+.su-telem .tr{display:flex;justify-content:space-between;padding:3px 0}
+.su-telem .tv{color:var(--cyan)}
+.su-bar-wrap{margin:0 0 8px;border:1px solid var(--line-bright);height:20px;position:relative;background:#04101d;z-index:2}
+#startup-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));
+  box-shadow:0 0 14px rgba(70,200,255,.7);transition:width .3s}
+#startup-pct{position:absolute;right:8px;top:0;font-size:11px;color:var(--cyan-bright)}
+.su-foot{display:flex;justify-content:space-between;align-items:center;padding-top:8px;position:relative;z-index:2}
+.su-hint{font-size:11px;letter-spacing:4px;color:var(--muted);animation:blink 1.6s steps(2) infinite}
+
+/* ---------- HUD chrome polish ---------- */
+nav.tabs button{clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%)}
+nav.tabs button.active{background:rgba(70,200,255,.10)}
+.detail{position:relative}
+.detail::before,.detail::after{content:"";position:absolute;width:20px;height:20px;border:2px solid var(--cyan);z-index:2;pointer-events:none}
+.detail::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.detail::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.rep-card{position:relative}
+.rep-card::after{content:"";position:absolute;top:-1px;right:-1px;width:14px;height:14px;
+  border-top:2px solid var(--line-bright);border-right:2px solid var(--line-bright);opacity:.8;pointer-events:none}
+.rep-card:hover::after{border-color:var(--cyan)}
+.rep-card.sos::after{border-color:#7a2c3d}
+.rep-card.sos:hover::after{border-color:var(--red)}
+.topbar .hud-tick{font-size:10px;letter-spacing:3px;color:var(--faint);white-space:nowrap}
+#screen-access{position:relative}
+#screen-access::before{content:"";position:absolute;top:50%;left:50%;width:min(86vmin,600px);height:min(86vmin,600px);
+  transform:translate(-50%,-50%);border:1px dashed var(--line);border-radius:50%;opacity:.45;pointer-events:none;
+  animation:spin 70s linear infinite}
+
 /* ---------- toast ---------- */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);z-index:9999;
   background:#061525;border:1px solid var(--cyan);color:var(--cyan-bright);padding:12px 24px;
@@ -243,6 +307,31 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
   </div>
 </div>
 
+<!-- ARTIFACT-STYLE STARTUP: targeting rings, staged checks, telemetry -->
+<div id="screen-startup" class="screen" hidden>
+  <div class="su-stage">
+    <div class="su-sweep"></div>
+    <div class="su-title"><div class="stamp" style="display:inline-block;margin-bottom:0">THE OBSIDIAN DIRECTORATE</div></div>
+    <div class="su-rings">
+      <div class="su-ticks"></div>
+      <div class="su-ring r1"></div>
+      <div class="su-ring r2"></div>
+      <div class="su-ring r3"></div>
+      <div class="su-cross-h"></div><div class="su-cross-v"></div>
+      <div class="su-core">OBDT</div>
+    </div>
+    <div class="su-cols">
+      <div class="su-checks" id="startup-checks"></div>
+      <div class="su-telem" id="startup-telemetry"></div>
+    </div>
+    <div class="su-bar-wrap"><div id="startup-bar"></div><span id="startup-pct">0%</span></div>
+    <div class="su-foot">
+      <span class="su-hint">ESTABLISHING HUD UPLINK</span>
+      <button class="btn small" id="btn-skip-startup">Skip [ESC]</button>
+    </div>
+  </div>
+</div>
+
 <!-- ACCESS -->
 <div id="screen-access" class="screen" hidden>
   <div class="stamp">THE OBSIDIAN DIRECTORATE</div>
@@ -274,6 +363,7 @@ table.grid tr:hover td{background:rgba(70,200,255,.05)}
 <div id="screen-app" class="screen" hidden>
   <div class="topbar">
     <div class="mini-stamp">OBSIDIAN DIRECTORATE</div>
+    <span class="hud-tick">SYS.NOMINAL // UPLINK SECURE</span>
     <div class="who" id="who-line"></div>
     <button class="btn small" id="btn-logout">Logout</button>
   </div>
@@ -550,7 +640,7 @@ const tierClassifications = () => isGuestView() ? ['declassified'] : (isHighComm
 
 /* ================= screens ================= */
 function show(id) {
-  ['screen-boot-gate','screen-boot','screen-access','screen-app'].forEach((s) => {
+  ['screen-boot-gate','screen-boot','screen-startup','screen-access','screen-app'].forEach((s) => {
     $(s).hidden = (s !== id);
   });
   window.scrollTo(0, 0);
@@ -590,7 +680,69 @@ function runBoot() {
     setTimeout(step, delay);
   })();
 }
-function finishBoot() { show('screen-access'); $('login-user').focus(); }
+function finishBoot() { runStartup(); }
+
+/* ================= artifact-style startup (after BIOS) ================= */
+const STARTUP_CHECKS = [
+  'UPLINK HANDSHAKE','NAV TELEMETRY','COMMS RELAY','SENSOR ARRAY',
+  'DEFENSE GRID','LIFE SUPPORT','HUD CALIBRATION','ARCHIVE INDEX',
+];
+function runStartup() {
+  show('screen-startup');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return finishStartup(); }
+  const checksBox = $('startup-checks'), telemBox = $('startup-telemetry');
+  const bar = $('startup-bar'), pct = $('startup-pct');
+  checksBox.innerHTML = ''; telemBox.innerHTML = '';
+  bar.style.width = '0%'; pct.textContent = '0%';
+  let done = false, telemTimer = null;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (telemTimer) clearInterval(telemTimer);
+    finishStartup();
+  };
+  $('btn-skip-startup').onclick = finish;
+  const escHandler = (e) => { if (e.key === 'Escape') { finish(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
+  const rows = STARTUP_CHECKS.map((name) => {
+    const d = document.createElement('div');
+    d.className = 'su-check';
+    d.innerHTML = '<span>' + name + '</span><span class="st">&middot;&middot;&middot;</span>';
+    checksBox.appendChild(d);
+    return d;
+  });
+  const telemRows = [['UPLINK','--'],['SIGNAL','--'],['PWR GRID','--'],['LAT','--'],['LON','--'],['RELAY NODE','--']];
+  const telemCells = telemRows.map(([k]) => {
+    const d = document.createElement('div');
+    d.className = 'tr';
+    d.innerHTML = '<span>' + k + '</span><span class="tv">--</span>';
+    telemBox.appendChild(d);
+    return d.querySelector('.tv');
+  });
+  const rnd = (a, b, f) => (a + Math.random() * (b - a)).toFixed(f === undefined ? 1 : f);
+  const tickTelem = () => {
+    telemCells[0].textContent = 'SECURE';
+    telemCells[1].textContent = rnd(92, 99) + ' %';
+    telemCells[2].textContent = rnd(4.1, 4.9, 2) + ' GW';
+    telemCells[3].textContent = rnd(-38, -12, 2) + '°';
+    telemCells[4].textContent = rnd(112, 148, 2) + '°';
+    telemCells[5].textContent = 'OBDT-R' + Math.floor(1 + Math.random() * 8);
+  };
+  tickTelem();
+  telemTimer = setInterval(() => { if (!done) tickTelem(); }, 420);
+  let i = 0;
+  (function step() {
+    if (done) return;
+    if (i >= rows.length) { setTimeout(finish, 550); return; }
+    rows[i].classList.add('done');
+    rows[i].querySelector('.st').textContent = 'OK';
+    i++;
+    const p = Math.round((i / rows.length) * 100);
+    bar.style.width = p + '%'; pct.textContent = p + '%';
+    setTimeout(step, 240 + Math.random() * 280);
+  })();
+}
+function finishStartup() { show('screen-access'); $('login-user').focus(); }
 
 /* ================= auth ================= */
 function setErr(id, msg) { $(id).textContent = msg || ''; }
