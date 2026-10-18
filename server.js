@@ -571,6 +571,11 @@ body.sos-theme .text{background:#12040a}
 /* ---------- error pages: full terminal screen draw ---------- */
 #fx-vignette{position:fixed;inset:0;pointer-events:none;z-index:49;
 background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+/* CRT line scan, same as the main page: a bright band sweeping down the screen */
+#fx-sweep{position:fixed;left:0;right:0;height:120px;pointer-events:none;z-index:48;opacity:.10;
+background:linear-gradient(180deg,transparent,var(--cyan),transparent);
+animation:crt-sweep 9s linear infinite}
+@keyframes crt-sweep{0%{top:-15%}100%{top:110%}}
 .card.screen-frame::before,.card.screen-frame::after{content:"";position:absolute;width:22px;height:22px;border:2px solid var(--cyan);z-index:2;pointer-events:none}
 .card.screen-frame::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
 .card.screen-frame::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
@@ -620,12 +625,11 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 .rollbar{position:fixed;left:0;right:0;height:70px;top:-80px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.05),transparent);pointer-events:none;z-index:60;animation:roll 7s linear infinite}
 @keyframes roll{to{transform:translateY(120vh)}}
 .sigbar{height:10px;border:1px solid #333;background:#000;margin:4px 0 18px;position:relative;overflow:hidden}
-.sigbar span{display:block;height:100%;width:12%;background:repeating-linear-gradient(90deg,#ff5470 0 6px,#30060d 6px 10px);animation:sig-jitter 1.7s infinite steps(1)}
-@keyframes sig-jitter{0%,80%,100%{width:12%}81%{width:7%}84%{width:16%}88%{width:4%}92%{width:11%}}
+.sigbar span{display:block;height:100%;width:12%;background:repeating-linear-gradient(90deg,#ff5470 0 6px,#30060d 6px 10px)}
 @media (prefers-reduced-motion:reduce){
 .draw-svg rect,.card.screen-frame.draw::before,.card.screen-frame.draw::after,.draw .denied{animation:none!important}
 .draw-svg rect{stroke-dashoffset:0}
-.glitch::before,.glitch::after,.static::after,.rollbar,body.lost,body.lost .card,.sigbar span{animation:none!important}
+.glitch::before,.glitch::after,.static::after,.rollbar,body.lost,body.lost .card{animation:none!important}
 .glitch::before,.glitch::after{display:none}
 }`;
 
@@ -661,7 +665,7 @@ function permaDeniedPage(message) {
 <meta property="og:description" content="${escHtml(ogDescription)}">
 <meta name="theme-color" content="#ff5470">
 <title>Access Denied — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="sos-theme">
-<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="card screen-frame draw">
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div id="fx-sweep"></div><div class="card screen-frame draw">
 <svg class="draw-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" pathLength="1"/></svg>
 <div class="screen-head">OBDT-TERMINAL // SECURE CHANNEL</div>
 <div class="banner sos">🔒 ACCESS DENIED 🔒</div>
@@ -701,11 +705,24 @@ function permaNotFoundPage() {
 <div class="logline">&gt; CHECKING PURGED RECORDS ... <b>REDACTED</b></div>
 <div class="logline">&gt; PACKET LOSS ... <b>88%</b> ... SIGNAL DEGRADING ...</div>
 <div class="logline">&gt; CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY. <span class="cursor"></span></div>
-<div style="color:var(--muted);font-size:13px;margin:18px 0 6px">SIGNAL</div>
+<div style="color:var(--muted);font-size:13px;margin:18px 0 6px">SIGNAL <span id="sigval">12%</span></div>
 <div class="sigbar"><span></span></div>
 <div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
-</div></div></div></body></html>`;
+</div></div></div><script>
+(function(){
+  // Signal bar: true random jitter, 1–69%, at random intervals.
+  var bar = document.querySelector('.sigbar span');
+  var val = document.getElementById('sigval');
+  function tick(){
+    var p = 1 + Math.floor(Math.random() * 69);
+    if (bar) bar.style.width = p + '%';
+    if (val) val.textContent = p + '%';
+    setTimeout(tick, 90 + Math.floor(Math.random() * 170));
+  }
+  tick();
+})();
+</script></body></html>`;
 }
 
 // Resolve a permalink request: { status, report?, denial? }
