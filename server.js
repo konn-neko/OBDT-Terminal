@@ -712,7 +712,7 @@ function biosOverlay(variant) {
   }
   var i = 0;
   function typeLine(){
-    if (i >= lines.length) { setTimeout(function(){ ready = true; bios.classList.add('bios-ready'); }, 600); return; }
+    if (i >= lines.length) { setTimeout(function(){ ready = true; bios.classList.add('bios-ready'); }, 750); return; }
     var line = lines[i];
     var div = document.createElement('div');
     var cursor = document.createElement('span');
@@ -725,18 +725,21 @@ function biosOverlay(variant) {
       if (j < line.text.length) {
         div.insertBefore(document.createTextNode(line.text.charAt(j)), cursor);
         j++;
-        setTimeout(typeChar, 16);
+        setTimeout(typeChar, 30);
       } else {
-        div.removeChild(cursor);
-        if (line.status && line.status !== 'none') {
-          var res = document.createElement('span');
-          res.className = line.status;
-          res.textContent = ' [' + line.tag + ']' + (line.detail ? ' ' + line.detail : '');
-          div.appendChild(res);
-        }
-        if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
-        i++;
-        setTimeout(typeLine, 350);
+        // Beat with the cursor blinking before the verdict stamps in.
+        setTimeout(function(){
+          div.removeChild(cursor);
+          if (line.status && line.status !== 'none') {
+            var res = document.createElement('span');
+            res.className = line.status;
+            res.textContent = ' [' + line.tag + ']' + (line.detail ? ' ' + line.detail : '');
+            div.appendChild(res);
+          }
+          if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
+          i++;
+          setTimeout(typeLine, 550);
+        }, 500);
       }
     })();
   }
@@ -751,7 +754,7 @@ function biosOverlay(variant) {
   }
   bios.addEventListener('click', dismiss);
   document.addEventListener('keydown', dismiss);
-  setTimeout(typeLine, 600);
+  setTimeout(typeLine, 800);
 })();
 </script>`;
 }

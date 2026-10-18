@@ -38,8 +38,9 @@ without High Command clearance opening a classified reference sees the
 Every page — the main terminal and every permalink — opens with a BIOS
 POST screen that runs slower, then waits at PRESS ANY KEY TO ENTER (any
 key or click enters; reduced-motion skips it). Each POST line types out
-character by character behind a blinking block cursor, then stamps a
-[OK] / [FAIL] / [WARN] indicator. Standard on normal pages; pure corrupted
+character by character (30ms/char) behind a blinking block cursor, pauses
+a beat with the cursor blinking, then stamps a [OK] / [FAIL] / [WARN]
+indicator, with a longer gap before the next line. Standard on normal
 BIOS on 404; on 403 it starts standard, then midway cycles to red and
 flags the terminal as HIGH COMMAND with clearance restricted.
 
