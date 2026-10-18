@@ -73,15 +73,16 @@ body{
 .bios-hint{margin-top:12px;color:#808080;font-size:12px;letter-spacing:2px}
 
 /* ---------- pure terminal interface (terminal mode: replaces the GUI app) ---------- */
-#screen-terminal{align-items:stretch;justify-content:flex-start;background:#000;padding:0}
-#term-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:#33ff66}
-#term-scroll .t-dim{color:#1e9e4a}
-#term-scroll .t-red{color:#ff4444}
-#term-scroll .t-amber{color:#ffb000}
-#term-scroll .t-white{color:#e8ffe8}
-#term-line{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #145c2e}
-#term-prompt{color:#33ff66;white-space:nowrap}
-#term-input{flex:1;background:transparent;border:none;outline:none;color:#33ff66;font-family:var(--mono);font-size:14px}
+/* Site palette (cyan on dark blue) — no separate green theme. */
+#screen-terminal{align-items:stretch;justify-content:flex-start;background:#03080f;padding:0}
+#term-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:#46c8ff}
+#term-scroll .t-dim{color:#1e7fae}
+#term-scroll .t-red{color:#ff5470}
+#term-scroll .t-amber{color:#ffb454}
+#term-scroll .t-white{color:#aee7ff}
+#term-line{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #123a5e}
+#term-prompt{color:#46c8ff;white-space:nowrap}
+#term-input{flex:1;background:transparent;border:none;outline:none;color:#46c8ff;font-family:var(--mono);font-size:14px}
 
 /* ---------- boot gate ---------- */
 #screen-boot-gate{cursor:pointer;user-select:none;text-align:center}
@@ -164,37 +165,6 @@ textarea{min-height:180px;resize:vertical;line-height:1.6}
   text-align:center;letter-spacing:3px;font-size:12px;padding:10px 16px;position:relative;z-index:55;
   animation:lockblink 2.4s ease-in-out infinite}
 @keyframes lockblink{0%,100%{background:rgba(255,84,112,.13)}50%{background:rgba(255,84,112,.22)}}
-/* ---------- terminal interface mode: pure terminal aesthetic ---------- */
-/* Variables only: placed before body.lockdown so the lockdown alert state
-   still wins the palette when both apply; the flattening below always wins. */
-body.terminal-mode{
-  --bg0:#000; --bg1:#000; --bg2:#000; --bg3:#000; --bg-glow:#000;
-  --line:#145c2e; --line-bright:#1e9e4a;
-  --cyan:#33ff66; --cyan-dim:#1e9e4a; --cyan-bright:#33ff66;
-  --text:#33ff66; --muted:#1e9e4a; --faint:#145c2e;
-  --green:#33ff66; --amber:#ffb000; --orange:#ffb000; --red:#ff4444;
-  background:#000; background-image:none;
-}
-body.terminal-mode *{box-shadow:none !important;text-shadow:none !important;border-radius:0 !important}
-body.terminal-mode .gate-frame,body.terminal-mode .boot-shell,body.terminal-mode .stamp,
-body.terminal-mode .panel,body.terminal-mode .topbar,body.terminal-mode nav.tabs,
-body.terminal-mode .rep-card,body.terminal-mode .detail,body.terminal-mode .role-card,
-body.terminal-mode .su-stage,body.terminal-mode .su-telem,body.terminal-mode .meta div,
-body.terminal-mode .report-text,body.terminal-mode .dd-menu,body.terminal-mode #toast,
-body.terminal-mode input[type=text],body.terminal-mode input[type=password],
-body.terminal-mode textarea,body.terminal-mode .dd-btn,body.terminal-mode .boot-bar-wrap,
-body.terminal-mode .su-bar-wrap{background:#000 !important;background-image:none !important}
-body.terminal-mode .stamp,body.terminal-mode .topbar .mini-stamp{transform:none}
-body.terminal-mode nav.tabs button{clip-path:none}
-body.terminal-mode nav.tabs button.active{background:rgba(51,255,102,.12)}
-body.terminal-mode .rep-card:hover{transform:none;background:#000}
-body.terminal-mode #boot-bar,body.terminal-mode #startup-bar{background:var(--cyan);background-image:none}
-body.terminal-mode .btn:hover,body.terminal-mode .dd-opt:hover,body.terminal-mode .dd-opt.hl,
-body.terminal-mode table.grid tr:hover td,body.terminal-mode .perm:hover{background:rgba(51,255,102,.12)}
-body.terminal-mode .btn.primary{background:rgba(51,255,102,.14)}
-body.terminal-mode .rep-card.sos,body.terminal-mode .rep-card.sos:hover,body.terminal-mode .detail.sos{background:#000}
-body.terminal-mode .detail.sos{border-color:var(--red)}
-
 /* ---------- lockdown crimson site theme ---------- */
 body.lockdown{
   --cyan:#ff5470; --cyan-dim:#a33a4d; --cyan-bright:#ffc2cd;
@@ -1779,6 +1749,8 @@ function startTerminal() {
   termPrint('');
   termSetPrompt(termCmdPrompt());
   termFocus();
+  // Show the saved reports under the terminal view on entry.
+  termArchive('');
 }
 
 function termHelp() {

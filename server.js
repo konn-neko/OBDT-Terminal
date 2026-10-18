@@ -658,18 +658,18 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
 #bios.bios-red .bios-opt:hover,#bios.bios-red .bios-opt.selected{background:#ff5470;color:#12040a;border-color:#ff5470}
 #bios.bios-red .bios-hint{color:#c07a88}
 #bios.bios-red .type-cursor{color:#ff5470}
-/* 404: pure corrupted BIOS */
-#bios.bios-corrupt{animation:page-flicker 6s infinite steps(1)}
+/* 404: pure corrupted BIOS — fully opaque, so the page glitch can never
+   show through it. Degradation comes from the RGB glitch bursts only. */
 #bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}
 /* 404 BIOS: rare degradation bursts — RGB split + garbled header, then quiet */
 #bios.bios-corrupt.bios-glitch .bios-head{text-shadow:3px 0 rgba(255,0,80,.8),-3px 0 rgba(0,255,255,.8);transform:translateX(1px)}
 #bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}
-/* ---------- terminal interface mode: pure terminal aesthetic ---------- */
-body.terminal-mode{--bg0:#000;--line:#145c2e;--line-bright:#1e9e4a;--cyan:#33ff66;--cyan-bright:#33ff66;--text:#33ff66;--muted:#1e9e4a;--faint:#145c2e;--green:#33ff66;--amber:#ffb000;--red:#ff4444;background:#000;background-image:none}
-body.terminal-mode *{box-shadow:none!important;text-shadow:none!important}
-body.terminal-mode .card,body.terminal-mode .meta div,body.terminal-mode .text{background:#000}
-body.terminal-mode .stamp{transform:none}
-body.terminal-mode .banner.sos{background:#000}`;
+/* 404: known transmissions the viewer can read */
+.known{color:var(--muted);font-size:12px;letter-spacing:2px;margin:18px 0 8px}
+.known-list a{display:block;color:var(--cyan);text-decoration:none;font-size:13px;line-height:1.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.known-list a:hover{color:var(--cyan-bright);text-decoration:underline}
+.known-none{color:var(--faint);font-size:13px}
+.known-more{color:var(--faint);font-size:12px;margin-top:6px}`;
 
 // BIOS page overlay: a POST-style boot screen shown on every page load.
 // Variants: 'standard' (normal pages), 'corrupt' (404: pure corrupted BIOS),
@@ -875,7 +875,19 @@ function permaDeniedPage(message) {
 
 // Every 404 page: a SIGNAL LOST surprise — the archive claims the reference
 // never existed. Partial-recovery fragment, search log, static sweep.
-function permaNotFoundPage() {
+function permaNotFoundPage(user) {
+  // Saved transmissions the viewer can read, newest first — so a lost
+  // reference still leads somewhere.
+  const visible = (db.reports || [])
+    .filter((r) => canSeeReport(user, r))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const shown = visible.slice(0, 25);
+  const knownHtml = shown.length
+    ? `<div class="known-list">${shown.map((r) =>
+        `<a href="/archive/${escHtml(r.ref)}">${escHtml(r.ref)} — ${escHtml(r.title)}</a>`).join('')}</div>`
+      + (visible.length > shown.length
+        ? `<div class="known-more">…and ${visible.length - shown.length} more in the archive.</div>` : '')
+    : `<div class="known-none">// NO TRANSMISSIONS ON RECORD</div>`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -900,6 +912,8 @@ function permaNotFoundPage() {
 <div class="logline">&gt; CHECKING PURGED RECORDS ... <b>REDACTED</b></div>
 <div class="logline">&gt; PACKET LOSS ... <b>88%</b> ... SIGNAL DEGRADING ...</div>
 <div class="logline">&gt; CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY. <span class="cursor"></span></div>
+<div class="known">// KNOWN TRANSMISSIONS //</div>
+${knownHtml}
 <div style="color:var(--muted);font-size:13px;margin:18px 0 6px">SIGNAL <span id="sigval">12%</span></div>
 <div class="sigbar"><span></span></div>
 <div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
@@ -938,7 +952,7 @@ function servePermalink(req, res, ref) {
   const result = resolveRef(ref, user);
   if (result.status !== 200) {
     if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial));
-    return sendHtml(res, 404, permaNotFoundPage());
+    return sendHtml(res, 404, permaNotFoundPage(user));
   }
   const r = publicReport(result.report);
   const isSos = r.type === 'SOS';
@@ -1363,7 +1377,8 @@ function serveStatic(req, res) {
   }
   fs.readFile(file, (err, data) => {
     if (err) {
-      return sendHtml(res, 404, permaNotFoundPage());
+      const session = getSession(req);
+      return sendHtml(res, 404, permaNotFoundPage(session ? session.user : null));
     }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
