@@ -309,8 +309,13 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
 @keyframes lockdownsweep{0%{top:-25%;opacity:0}20%{opacity:1}100%{top:115%;opacity:0}}
 
 /* ---------- conditional field reveal (subtype / recipient) ---------- */
+/* NOTE: overflow:hidden is only wanted *during* the reveal animation. Once a
+   revealed wrapper finishes animating, JS adds .reveal-done (overflow:visible)
+   so the absolutely-positioned dropdown menu inside it is not clipped by the
+   wrapper — that clipping is what made the subtype dropdown render cut off. */
 #wrap-subtype,#wrap-recipient{overflow:hidden;max-height:220px;transition:opacity .28s ease,transform .28s ease,max-height .32s ease}
 #wrap-subtype.reveal-enter,#wrap-recipient.reveal-enter{opacity:0;transform:translateY(-10px);max-height:0}
+#wrap-subtype.reveal-done,#wrap-recipient.reveal-done{overflow:visible}
 
 @media (max-width:640px){
   .gate-frame{padding:32px 24px}
@@ -460,7 +465,7 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
         <div class="field" style="flex:1;min-width:200px"><label>Report Classification</label><div class="dd" id="dd-rep-cls"></div></div>
         <div class="field" style="flex:1;min-width:200px"><label>Report Type</label><div class="dd" id="dd-rep-type"></div></div>
       </div>
-      <div class="field" id="wrap-subtype" hidden><label>Intelligence Subtype <span class="req">*</span></label><div class="dd" id="dd-rep-sub"></div></div>
+      <div class="field" id="wrap-subtype" hidden><label><span id="label-subtype">Intelligence Subtype</span> <span class="req">*</span></label><div class="dd" id="dd-rep-sub"></div></div>
       <div class="field" id="wrap-recipient" hidden><label>Recipient Party <span class="req">*</span></label><input type="text" id="rep-recipient" spellcheck="false" maxlength="200" placeholder="e.g. Pilots Federation, Sirius Corp..."></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:200px"><label>Sector (optional)</label><input type="text" id="rep-sector" spellcheck="false" maxlength="200" placeholder="e.g. IC 2391 Sector FL-Y c14"></div>
@@ -677,8 +682,15 @@ document.addEventListener('keydown', (e) => {
 /* ================= constants (mirror server) ================= */
 const CLASSIFICATIONS = ['declassified','restricted','classified'];
 const CLS_LABEL = { declassified:'DECLASSIFIED', restricted:'RESTRICTED', classified:'CLASSIFIED' };
-const REPORT_TYPES = ['SOS','Intelligence Report','Diplomatic Communique'];
-const SUBTYPES = ['Espionage Attempt','CMDR Sighting','BGS/PowerPlay','Market Changes'];
+const REPORT_TYPES = ['SOS','Intelligence Report','Diplomatic Communique','Major Order'];
+// Subtype options per report type (mirror server SUBTYPES). Types absent here
+// have no subtype dropdown.
+const SUBTYPES = {
+  'Intelligence Report': ['Espionage Attempt','CMDR Sighting','BGS/PowerPlay','Market Changes'],
+  'Major Order': ['Power Play Undermining','Power Play Reinforce','Power Play Acquisition'],
+};
+const SUBTYPE_LABEL = { 'Intelligence Report': 'Intelligence Subtype', 'Major Order': 'Major Order Subtype' };
+const subtypesFor = (t) => SUBTYPES[t] || [];
 const PERMISSIONS = ['create_report','edit_report','delete_report','manage_users','manage_roles'];
 const PERM_LABELS = {
   create_report:'File reports', edit_report:'Revise reports',
@@ -736,14 +748,25 @@ function viewFlash() {
 
 function revealField(el, show) {
   if (!el) return;
+  if (el._revealTimer) { clearTimeout(el._revealTimer); el._revealTimer = null; }
   if (show && el.hidden) {
     el.hidden = false;
+    el.classList.remove('reveal-done');
     el.classList.add('reveal-enter');
     void el.offsetWidth;
-    requestAnimationFrame(() => el.classList.remove('reveal-enter'));
+    requestAnimationFrame(() => {
+      el.classList.remove('reveal-enter');
+      // The reveal animation needs overflow:hidden while it runs, but keeping
+      // it afterwards clips the dropdown menu inside this wrapper. Once the
+      // transition is done, lift the clipping so the menu can overflow.
+      el._revealTimer = setTimeout(() => { el.classList.add('reveal-done'); }, 340);
+    });
   } else if (!show && !el.hidden) {
     el.hidden = true;
-    el.classList.remove('reveal-enter');
+    el.classList.remove('reveal-enter', 'reveal-done');
+  } else if (show) {
+    // Already visible (e.g. re-sync while open): keep the menu unclipped.
+    el.classList.add('reveal-done');
   }
 }
 
@@ -1200,10 +1223,12 @@ function discordText(r) {
   L.push(`\`REF: ${r.ref || '—'}\`  \`CLASSIFICATION: ${EXPORT_CLS[r.classification] || r.classification}\``);
   L.push('');
   L.push(`**Title:** ${r.title}`);
-  L.push(`**Report Type:** ${r.subtype ? r.type + ' / ' + r.subtype : r.type}`);
+  L.push(`**Report Type:** ${r.type}`);
+  if (r.subtype) L.push(`**Subtype:** ${r.subtype}`);
   L.push(`**Filed By:** ${r.reportingCmdr || '—'}`);
   if (r.sector) L.push(`**Sector:** ${r.sector}`);
   if (r.directedTo) L.push(`**Directed To:** ${r.directedTo}`);
+  if (r.recipient) L.push(`**Recipient Party:** ${r.recipient}`);
   L.push(`**Date:** ${fmtExportDate(r.createdAt)}`);
   L.push('');
   L.push('```');
@@ -1225,10 +1250,12 @@ function inaraHtml(r) {
   h += `<p><strong>THE OBSIDIAN DIRECTORATE — ${isSos ? 'URGENT' : 'CLASSIFIED'} TRANSMISSION</strong></p>`;
   h += `<p><code>REF: ${e(r.ref || '—')}</code> &nbsp;|&nbsp; <code>CLASSIFICATION: ${e(EXPORT_CLS[r.classification] || r.classification)}</code></p>`;
   h += `<p><strong>Title:</strong> ${e(r.title)}<br>`;
-  h += `<strong>Report Type:</strong> ${e(r.subtype ? r.type + ' / ' + r.subtype : r.type)}<br>`;
+  h += `<strong>Report Type:</strong> ${e(r.type)}<br>`;
+  if (r.subtype) h += `<strong>Subtype:</strong> ${e(r.subtype)}<br>`;
   h += `<strong>Filed By:</strong> ${e(r.reportingCmdr || '—')}<br>`;
   if (r.sector) h += `<strong>Sector:</strong> ${e(r.sector)}<br>`;
   if (r.directedTo) h += `<strong>Directed To:</strong> ${e(r.directedTo)}<br>`;
+  if (r.recipient) h += `<strong>Recipient Party:</strong> ${e(r.recipient)}<br>`;
   h += `<strong>Date:</strong> ${e(fmtExportDate(r.createdAt))}</p>`;
   h += `<blockquote style="border-left:3px solid #1e5a8f;margin:12px 0;padding:8px 14px;color:#c9e8ff">${e(r.body).replace(/\n/g, '<br>')}</blockquote>`;
   if (r.signingCmdr) h += `<p><strong>Signed,</strong><br>CMDR ${e(r.signingCmdr)}</p>`;
@@ -1244,10 +1271,12 @@ function inaraPlain(r) {
   L.push(`REF: ${r.ref || '—'} | CLASSIFICATION: ${EXPORT_CLS[r.classification] || r.classification}`);
   L.push('');
   L.push(`Title: ${r.title}`);
-  L.push(`Report Type: ${r.subtype ? r.type + ' / ' + r.subtype : r.type}`);
+  L.push(`Report Type: ${r.type}`);
+  if (r.subtype) L.push(`Subtype: ${r.subtype}`);
   L.push(`Filed By: ${r.reportingCmdr || '—'}`);
   if (r.sector) L.push(`Sector: ${r.sector}`);
   if (r.directedTo) L.push(`Directed To: ${r.directedTo}`);
+  if (r.recipient) L.push(`Recipient Party: ${r.recipient}`);
   L.push(`Date: ${fmtExportDate(r.createdAt)}`);
   L.push('');
   L.push(r.body);
@@ -1269,7 +1298,7 @@ function initEditorDropdowns() {
     onChange: syncTypeFields,
   });
   S.dd.repSub = new HudDropdown($('dd-rep-sub'), {
-    options: SUBTYPES.map((s) => ({ value: s, label: s })),
+    options: subtypesFor(S.dd.repType.value).map((s) => ({ value: s, label: s })),
     value: '',
     onChange: () => {},
   });
@@ -1277,7 +1306,14 @@ function initEditorDropdowns() {
 
 function syncTypeFields() {
   const t = S.dd.repType.value;
-  revealField($('wrap-subtype'), t === 'Intelligence Report');
+  const subs = subtypesFor(t);
+  // Refresh the subtype options for this type, keeping the current value when
+  // it is still valid for the new type, otherwise clearing it so a stale
+  // subtype can never be submitted with the wrong report type.
+  const cur = S.dd.repSub.value;
+  S.dd.repSub.setOptions(subs.map((s) => ({ value: s, label: s })), subs.includes(cur) ? cur : '');
+  $('label-subtype').textContent = SUBTYPE_LABEL[t] || 'Subtype';
+  revealField($('wrap-subtype'), subs.length > 0);
   revealField($('wrap-recipient'), t === 'Diplomatic Communique');
   if (t === 'SOS') {
     // SOS is always declassified — lock the classification dropdown.
@@ -1302,7 +1338,7 @@ function openEditor(report) {
   if (!S.dd.repCls) initEditorDropdowns();
   S.dd.repCls.setOptions(CLASSIFICATIONS.map((c) => ({ value: c, label: CLS_LABEL[c] })), r.classification || 'declassified');
   S.dd.repType.setOptions(REPORT_TYPES.map((t) => ({ value: t, label: t })), r.type || 'SOS');
-  S.dd.repSub.setOptions(SUBTYPES.map((s) => ({ value: s, label: s })), r.subtype || '');
+  S.dd.repSub.setOptions(subtypesFor(r.type || 'SOS').map((s) => ({ value: s, label: s })), r.subtype || '');
   syncTypeFields();
   setErr('rep-err', '');
   setView('edit');
