@@ -52,6 +52,18 @@ body{
 .screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
 [hidden]{display:none !important}
 
+/* ---------- BIOS page (POST screen on every page load) ---------- */
+#bios{position:fixed;inset:0;z-index:9999;background:#000;color:#c0c0c0;font-family:var(--mono);font-size:14px;line-height:1.7;padding:24px;overflow:hidden;transition:opacity .45s;cursor:pointer}
+#bios.bios-done{opacity:0;pointer-events:none}
+.bios-inner{max-width:760px;margin:0 auto}
+.bios-head{color:#fff;letter-spacing:2px}
+.bios-sub{color:#808080;margin-bottom:18px}
+.bios-lines{min-height:170px;white-space:pre-wrap}
+.bios-lines .ok{color:#4fe08a}
+.bios-lines .fail{color:#ff5470}
+.bios-foot{margin-top:18px;color:#fff}
+.bios-cursor{display:inline-block;width:9px;height:15px;background:#c0c0c0;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+
 /* ---------- boot gate ---------- */
 #screen-boot-gate{cursor:pointer;user-select:none;text-align:center}
 .gate-frame{border:1px solid var(--line-bright);padding:48px 64px;background:rgba(6,18,31,.85);
@@ -343,6 +355,16 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
 <div id="viewflash"></div>
 <div id="lockdownsweep"></div>
 <div id="fx-scanlines"></div>
+
+<!-- BIOS PAGE: POST screen on every page load (standard variant) -->
+<div id="bios" class="bios bios-standard" data-variant="standard" aria-hidden="true">
+<div class="bios-inner">
+<div class="bios-head">OBSIDIAN DIRECTORATE BIOS  v2.6.1</div>
+<div class="bios-sub">(C) 3302-3312, OBSIDIAN DIRECTORATE SYSTEMS</div>
+<div class="bios-lines"></div>
+<div class="bios-foot">PRESS ANY KEY TO BOOT <span class="bios-cursor"></span></div>
+</div>
+</div>
 
 <!-- BOOT GATE: required interaction before anything loads -->
 <div id="screen-boot-gate" class="screen">
@@ -1627,6 +1649,72 @@ function wire() {
       }, 250);
     }
   }, { once: true });
+})();
+</script>
+<script>
+/* BIOS page: POST screen on every page load (standard variant).
+   Mirrors the biosOverlay() logic in server.js. */
+(function(){
+  var bios = document.getElementById('bios');
+  if (!bios) return;
+  function dismiss(){
+    if (bios.dataset.done) return;
+    bios.dataset.done = '1';
+    bios.classList.add('bios-done');
+    setTimeout(function(){ if (bios.parentNode) bios.parentNode.removeChild(bios); }, 450);
+  }
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { dismiss(); return; }
+  var variant = bios.getAttribute('data-variant') || 'standard';
+  var linesEl = bios.querySelector('.bios-lines');
+  var lines;
+  if (variant === 'corrupt') {
+    lines = [
+      'MEMORY TEST:  640K OK ......... <span class="fail">██████ FAIL</span>',
+      'DETECTING UPLINK ............ <span class="fail">NO CARRIER</span>',
+      'DETECTING ARCHIVE ........... <span class="fail">NOT FOUND</span>',
+      'BIOS CHECKSUM ............... <span class="fail">CORRUPT</span>',
+      'CMOS ........................ <span class="fail">CORRUPT</span>',
+      'SIGNAL LOST — BOOTING RECOVERY SHELL'
+    ];
+  } else if (variant === 'highcommand') {
+    lines = [
+      'MEMORY TEST:  640K OK ......... <span class="ok">65536K OK</span>',
+      'DETECTING UPLINK ............ <span class="ok">OK</span>',
+      'DETECTING CLEARANCE ......... <span class="fail">RESTRICTED</span>',
+      '!! CLEARANCE OVERRIDE DETECTED !!',
+      'TERMINAL TYPE: HIGH COMMAND',
+      'ACCESS LEVEL: RESTRICTED — SIGN-IN REQUIRED'
+    ];
+  } else {
+    lines = [
+      'MEMORY TEST:  640K OK ......... <span class="ok">65536K OK</span>',
+      'DETECTING UPLINK ............ <span class="ok">OK</span>',
+      'DETECTING ARCHIVE ........... <span class="ok">OK</span>',
+      'LOADING TERMINAL ............ <span class="ok">OK</span>'
+    ];
+  }
+  var i = 0;
+  function showNext(){
+    if (i >= lines.length) { setTimeout(dismiss, 500); return; }
+    var div = document.createElement('div');
+    div.innerHTML = lines[i];
+    linesEl.appendChild(div);
+    if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
+    i++;
+    setTimeout(showNext, 220);
+  }
+  if (variant === 'corrupt') {
+    var head = bios.querySelector('.bios-head');
+    var orig = head.textContent;
+    setInterval(function(){
+      head.textContent = orig.split('').map(function(c){
+        return Math.random() < 0.15 ? '█▓▒░�'.charAt(Math.floor(Math.random() * 5)) : c;
+      }).join('');
+    }, 120);
+  }
+  bios.addEventListener('click', dismiss);
+  document.addEventListener('keydown', dismiss);
+  showNext();
 })();
 </script>
 </body>

@@ -631,7 +631,105 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 .draw-svg rect{stroke-dashoffset:0}
 .glitch::before,.glitch::after,.static::after,.rollbar,body.lost,body.lost .card{animation:none!important}
 .glitch::before,.glitch::after{display:none}
-}`;
+}
+/* ---------- BIOS page (POST screen on every page load) ---------- */
+#bios{position:fixed;inset:0;z-index:9999;background:#000;color:#c0c0c0;font-family:var(--mono);font-size:14px;line-height:1.7;padding:24px;overflow:hidden;transition:opacity .45s;cursor:pointer}
+#bios.bios-done{opacity:0;pointer-events:none}
+.bios-inner{max-width:760px;margin:0 auto}
+.bios-head{color:#fff;letter-spacing:2px}
+.bios-sub{color:#808080;margin-bottom:18px}
+.bios-lines{min-height:170px;white-space:pre-wrap}
+.bios-lines .ok{color:#4fe08a}
+.bios-lines .fail{color:#ff5470}
+.bios-foot{margin-top:18px;color:#fff}
+.bios-cursor{display:inline-block;width:9px;height:15px;background:#c0c0c0;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+/* 403: midway the BIOS cycles to red — High Command terminal */
+#bios.bios-red{background:#12040a;color:#ffb3c0}
+#bios.bios-red .bios-head,#bios.bios-red .bios-foot{color:#ff5470}
+#bios.bios-red .bios-lines .ok{color:#ff5470}
+#bios.bios-red .bios-cursor{background:#ff5470}
+/* 404: pure corrupted BIOS */
+#bios.bios-corrupt{animation:page-flicker 6s infinite steps(1)}
+#bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}`;
+
+// BIOS page overlay: a POST-style boot screen shown on every page load.
+// Variants: 'standard' (normal pages), 'corrupt' (404: pure corrupted BIOS),
+// 'highcommand' (403: starts standard, midway cycles to red and flags a
+// HIGH COMMAND terminal).
+function biosOverlay(variant) {
+  return `<div id="bios" class="bios bios-${escHtml(variant)}" data-variant="${escHtml(variant)}" aria-hidden="true">
+<div class="bios-inner">
+<div class="bios-head">OBSIDIAN DIRECTORATE BIOS  v2.6.1</div>
+<div class="bios-sub">(C) 3302-3312, OBSIDIAN DIRECTORATE SYSTEMS</div>
+<div class="bios-lines"></div>
+<div class="bios-foot">PRESS ANY KEY TO BOOT <span class="bios-cursor"></span></div>
+</div>
+</div>
+<script>
+(function(){
+  var bios = document.getElementById('bios');
+  if (!bios) return;
+  function dismiss(){
+    if (bios.dataset.done) return;
+    bios.dataset.done = '1';
+    bios.classList.add('bios-done');
+    setTimeout(function(){ if (bios.parentNode) bios.parentNode.removeChild(bios); }, 450);
+  }
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { dismiss(); return; }
+  var variant = bios.getAttribute('data-variant') || 'standard';
+  var linesEl = bios.querySelector('.bios-lines');
+  var lines;
+  if (variant === 'corrupt') {
+    lines = [
+      'MEMORY TEST:  640K OK ......... <span class="fail">██████ FAIL</span>',
+      'DETECTING UPLINK ............ <span class="fail">NO CARRIER</span>',
+      'DETECTING ARCHIVE ........... <span class="fail">NOT FOUND</span>',
+      'BIOS CHECKSUM ............... <span class="fail">CORRUPT</span>',
+      'CMOS ........................ <span class="fail">CORRUPT</span>',
+      'SIGNAL LOST — BOOTING RECOVERY SHELL'
+    ];
+  } else if (variant === 'highcommand') {
+    lines = [
+      'MEMORY TEST:  640K OK ......... <span class="ok">65536K OK</span>',
+      'DETECTING UPLINK ............ <span class="ok">OK</span>',
+      'DETECTING CLEARANCE ......... <span class="fail">RESTRICTED</span>',
+      '!! CLEARANCE OVERRIDE DETECTED !!',
+      'TERMINAL TYPE: HIGH COMMAND',
+      'ACCESS LEVEL: RESTRICTED — SIGN-IN REQUIRED'
+    ];
+  } else {
+    lines = [
+      'MEMORY TEST:  640K OK ......... <span class="ok">65536K OK</span>',
+      'DETECTING UPLINK ............ <span class="ok">OK</span>',
+      'DETECTING ARCHIVE ........... <span class="ok">OK</span>',
+      'LOADING TERMINAL ............ <span class="ok">OK</span>'
+    ];
+  }
+  var i = 0;
+  function showNext(){
+    if (i >= lines.length) { setTimeout(dismiss, 500); return; }
+    var div = document.createElement('div');
+    div.innerHTML = lines[i];
+    linesEl.appendChild(div);
+    if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
+    i++;
+    setTimeout(showNext, 220);
+  }
+  if (variant === 'corrupt') {
+    var head = bios.querySelector('.bios-head');
+    var orig = head.textContent;
+    setInterval(function(){
+      head.textContent = orig.split('').map(function(c){
+        return Math.random() < 0.15 ? '█▓▒░�'.charAt(Math.floor(Math.random() * 5)) : c;
+      }).join('');
+    }, 120);
+  }
+  bios.addEventListener('click', dismiss);
+  document.addEventListener('keydown', dismiss);
+  showNext();
+})();
+</script>`;
+}
 
 function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass }) {
   const meta = metaRows
@@ -645,7 +743,7 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 <meta property="og:description" content="${escHtml(ogDescription)}">
 <meta name="theme-color" content="${escHtml(themeColor || '#46c8ff')}">
 <title>${escHtml(ogTitle)} — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="${escHtml(bodyClass || '')}">
-<div id="fx-scanlines"></div><div class="card">
+<div id="fx-scanlines"></div>${biosOverlay('standard')}<div class="card">
 <div class="banner ${bannerClass}">${escHtml(bannerText)}</div>
 <div class="body">${titleHtml}${refLine}<div class="meta">${meta}</div>
 <div class="text">${bodyHtml}</div>${signHtml}
@@ -665,7 +763,7 @@ function permaDeniedPage(message) {
 <meta property="og:description" content="${escHtml(ogDescription)}">
 <meta name="theme-color" content="#ff5470">
 <title>Access Denied — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="sos-theme">
-<div id="fx-vignette"></div><div id="fx-scanlines"></div><div id="fx-sweep"></div><div class="card screen-frame draw">
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div id="fx-sweep"></div>${biosOverlay('highcommand')}<div class="card screen-frame draw">
 <svg class="draw-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" pathLength="1"/></svg>
 <div class="screen-head">OBDT-TERMINAL // SECURE CHANNEL</div>
 <div class="banner sos">🔒 ACCESS DENIED 🔒</div>
@@ -689,7 +787,7 @@ function permaNotFoundPage() {
 <meta property="og:description" content="This transmission reference does not exist. Signal lost — the archive denies everything.">
 <meta name="theme-color" content="#000000">
 <title>Signal Lost — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="lost">
-<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="rollbar"></div><div class="card screen-frame">
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="rollbar"></div>${biosOverlay('corrupt')}<div class="card screen-frame">
 <div class="screen-head">OBDT-TERMINAL // SIGNAL DEGRADED</div>
 <div class="banner cls">THE OBSIDIAN DIRECTORATE — ARCHIVE</div>
 <div class="body"><div class="denied">
