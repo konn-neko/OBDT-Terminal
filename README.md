@@ -65,26 +65,29 @@ OBDT-YYYYMMDD-HHMMSS-NNNN   e.g. OBDT-20261013-143022-0042
 sequence (first report ever filed = `0001`). Revisions never regenerate the REF.
 
 Required fields: **Report Title**, **Reporting CMDR**. Optional: **Signing CMDR**,
-**Sector**, **Directed To**. Intelligence Reports and Directive Orders require a
+**Sector**, **Directed To**. Intelligence Reports and Major Orders require a
 subtype; Diplomatic Communiques require a Recipient Party. Each report has a
 permalink at `/archive/<REF>`.
 
-| Report Type | Subtypes / extra fields |
+| Report Type | Subtype / extra field |
 |---|---|
 | SOS | (none — always DECLASSIFIED) |
 | Intelligence Report | Espionage Attempt, CMDR Sighting, BGS/PowerPlay, Market Changes |
-| Diplomatic Communique | Recipient Party (required) |
-| Directive Orders | Power Play, General BGS |
+| Diplomatic Communique | Recipient Party (required, instead of a subtype) |
+| Major Order | Power Play Undermining, Power Play Reinforce, Power Play Acquisition |
 
 ## Export formats
 
 - **Copy for Discord** — plain-text classified-transmission template: role ping
   `<@&1507659469516046489>`, transmission header (URGENT for SOS), inline-code
-  `REF:` / `CLASSIFICATION:` stamps, bold labeled fields, fenced body block,
-  signed footer. Classification labels: `DECLASSIFIED`, `DIRECTORATE PERSONNEL`,
-  `OBSIDIAN EYES ONLY`.
+  `REF:` / `CLASSIFICATION:` stamps, bold labeled fields (including a `Subtype:`
+  line when the report has one, and a `Recipient Party:` line for Diplomatic
+  Communiques), fenced body block, signed footer. Classification labels:
+  `DECLASSIFIED`, `DIRECTORATE PERSONNEL`, `OBSIDIAN EYES ONLY`.
 - **Copy for Inara** — embedded rich HTML on the clipboard (renders formatted on
-  paste, no visible markers), with a plain-text fallback.
+  paste, no visible markers), with a plain-text fallback. Both the HTML and the
+  plain-text fallback carry the same fields as the Discord copy, including
+  `Subtype:` and `Recipient Party:` lines when applicable.
 
 ## Deploy on a VPS (Ubuntu/Debian)
 
