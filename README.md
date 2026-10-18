@@ -36,13 +36,17 @@ without High Command clearance opening a classified reference sees the
 **SIGNAL LOST** page (corrupted frame, signal jittering randomly 1–69%).
 
 Every page — the main terminal and every permalink — opens with a BIOS
-POST screen that runs slower, then waits at PRESS ANY KEY TO ENTER (any
-key or click enters; reduced-motion skips it). Each POST line types out
-character by character (30ms/char) behind a blinking block cursor, pauses
-a beat with the cursor blinking, then stamps a [OK] / [FAIL] / [WARN]
-indicator, with a longer gap before the next line. Standard on normal
-BIOS on 404; on 403 it starts standard, then midway cycles to red and
-flags the terminal as HIGH COMMAND with clearance restricted.
+POST screen that runs slower, then offers SELECT INTERFACE: GUI keeps the
+standard look, TERMINAL switches the site to a pure terminal aesthetic
+(green-on-black, flat, no glow). Pick with a click, G / T, or Enter for
+GUI; the choice is saved and applies to the main site and normal permalink
+pages, while 403/404 pages keep their own themes. Reduced-motion skips
+the BIOS. Each POST line types out character by character (30ms/char)
+behind a blinking block cursor, pauses a beat with the cursor blinking,
+then stamps a [OK] / [FAIL] / [WARN] indicator, with a longer gap before
+the next line. Standard POST on normal pages; pure corrupted BIOS on 404;
+on 403 it starts standard, then midway cycles to red and flags the
+terminal as HIGH COMMAND with clearance restricted.
 
 SOS reports are always filed as **declassified** (forced at save time) and
 render in crimson red.

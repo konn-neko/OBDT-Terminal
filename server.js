@@ -633,7 +633,7 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 .glitch::before,.glitch::after{display:none}
 }
 /* ---------- BIOS page (POST screen on every page load) ---------- */
-#bios{position:fixed;inset:0;z-index:9999;background:#000;color:#c0c0c0;font-family:var(--mono);font-size:14px;line-height:1.7;padding:24px;overflow:hidden;transition:opacity .45s;cursor:pointer}
+#bios{position:fixed;inset:0;z-index:9999;background:#000;color:#c0c0c0;font-family:var(--mono);font-size:14px;line-height:1.7;padding:24px;overflow:hidden;transition:opacity .45s;cursor:default}
 #bios.bios-done{opacity:0;pointer-events:none}
 .bios-inner{max-width:760px;margin:0 auto}
 .bios-head{color:#fff;letter-spacing:2px}
@@ -645,16 +645,29 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 .type-cursor{color:#fff;animation:blink .8s steps(2) infinite}
 .bios-foot{margin-top:18px;color:#fff;opacity:0;transition:opacity .3s}
 #bios.bios-ready .bios-foot{opacity:1}
-.bios-cursor{display:inline-block;width:9px;height:15px;background:#c0c0c0;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+.bios-select{letter-spacing:3px;margin-bottom:10px}
+.bios-options{display:flex;gap:12px}
+.bios-opt{font-family:var(--mono);font-size:14px;letter-spacing:2px;background:#000;color:#c0c0c0;border:1px solid #808080;padding:10px 22px;cursor:pointer}
+.bios-opt:hover,.bios-opt.selected{background:#c0c0c0;color:#000;border-color:#fff}
+.bios-opt .bios-key{display:inline-block;border:1px solid currentColor;padding:0 5px;margin-right:8px;font-size:11px}
+.bios-hint{margin-top:12px;color:#808080;font-size:12px;letter-spacing:2px}
 /* 403: midway the BIOS cycles to red — High Command terminal */
 #bios.bios-red{background:#12040a;color:#ffb3c0}
 #bios.bios-red .bios-head,#bios.bios-red .bios-foot{color:#ff5470}
 #bios.bios-red .bios-lines .ok{color:#ff5470}
-#bios.bios-red .bios-cursor{background:#ff5470}
+#bios.bios-red .bios-opt{background:#12040a;color:#ffb3c0;border-color:#a33a4d}
+#bios.bios-red .bios-opt:hover,#bios.bios-red .bios-opt.selected{background:#ff5470;color:#12040a;border-color:#ff5470}
+#bios.bios-red .bios-hint{color:#c07a88}
 #bios.bios-red .type-cursor{color:#ff5470}
 /* 404: pure corrupted BIOS */
 #bios.bios-corrupt{animation:page-flicker 6s infinite steps(1)}
-#bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}`;
+#bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}
+/* ---------- terminal interface mode: pure terminal aesthetic ---------- */
+body.terminal-mode{--bg0:#000;--line:#145c2e;--line-bright:#1e9e4a;--cyan:#33ff66;--cyan-bright:#33ff66;--text:#33ff66;--muted:#1e9e4a;--faint:#145c2e;--green:#33ff66;--amber:#ffb000;--red:#ff4444;background:#000;background-image:none}
+body.terminal-mode *{box-shadow:none!important;text-shadow:none!important}
+body.terminal-mode .card,body.terminal-mode .meta div,body.terminal-mode .text{background:#000}
+body.terminal-mode .stamp{transform:none}
+body.terminal-mode .banner.sos{background:#000}`;
 
 // BIOS page overlay: a POST-style boot screen shown on every page load.
 // Variants: 'standard' (normal pages), 'corrupt' (404: pure corrupted BIOS),
@@ -666,7 +679,14 @@ function biosOverlay(variant) {
 <div class="bios-head">OBSIDIAN DIRECTORATE BIOS  v2.6.1</div>
 <div class="bios-sub">(C) 3302-3312, OBSIDIAN DIRECTORATE SYSTEMS</div>
 <div class="bios-lines"></div>
-<div class="bios-foot">PRESS ANY KEY TO ENTER <span class="bios-cursor"></span></div>
+<div class="bios-foot">
+<div class="bios-select">SELECT INTERFACE</div>
+<div class="bios-options">
+<button type="button" class="bios-opt" data-iface="gui"><span class="bios-key">G</span>GUI</button>
+<button type="button" class="bios-opt" data-iface="terminal"><span class="bios-key">T</span>TERMINAL</button>
+</div>
+<div class="bios-hint">PRESS G FOR GUI — T FOR TERMINAL — ENTER FOR GUI</div>
+</div>
 </div>
 </div>
 <script>
@@ -674,14 +694,35 @@ function biosOverlay(variant) {
   var bios = document.getElementById('bios');
   if (!bios) return;
   var ready = false;
-  function dismiss(){
-    if (!ready || bios.dataset.done) return;
-    bios.dataset.done = '1';
+  var variant = bios.getAttribute('data-variant') || 'standard';
+  function applyIface(iface){
+    // Error pages keep their own themes; the choice is still stored for
+    // the main site.
+    if (variant !== 'highcommand' && variant !== 'corrupt') {
+      document.body.classList.toggle('terminal-mode', iface === 'terminal');
+    }
+    var opts = bios.querySelectorAll('.bios-opt');
+    for (var k = 0; k < opts.length; k++) {
+      opts[k].classList.toggle('selected', opts[k].getAttribute('data-iface') === iface);
+    }
+  }
+  function removeBios(){
     bios.classList.add('bios-done');
     setTimeout(function(){ if (bios.parentNode) bios.parentNode.removeChild(bios); }, 450);
   }
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { ready = true; dismiss(); return; }
-  var variant = bios.getAttribute('data-variant') || 'standard';
+  function choose(iface){
+    if (!ready || bios.dataset.done) return;
+    bios.dataset.done = '1';
+    try { localStorage.setItem('obdt-interface', iface); } catch (e) {}
+    applyIface(iface);
+    removeBios();
+  }
+  // Apply the stored interface before POST runs, so the page behind the
+  // BIOS is already in the right mode.
+  var stored = null;
+  try { stored = localStorage.getItem('obdt-interface'); } catch (e) {}
+  if (stored === 'terminal' || stored === 'gui') applyIface(stored);
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { removeBios(); return; }
   var linesEl = bios.querySelector('.bios-lines');
   var lines;
   if (variant === 'corrupt') {
@@ -752,8 +793,20 @@ function biosOverlay(variant) {
       }).join('');
     }, 120);
   }
-  bios.addEventListener('click', dismiss);
-  document.addEventListener('keydown', dismiss);
+  // Interface choice: buttons + G / T / Enter (Enter = GUI).
+  var btns = bios.querySelectorAll('.bios-opt');
+  for (var k = 0; k < btns.length; k++) {
+    btns[k].addEventListener('click', function(){
+      choose(this.getAttribute('data-iface'));
+    });
+  }
+  document.addEventListener('keydown', function(e){
+    if (!ready) return;
+    var key = (e.key || '').toLowerCase();
+    if (key === 'g') choose('gui');
+    else if (key === 't') choose('terminal');
+    else if (key === 'enter') choose('gui');
+  });
   setTimeout(typeLine, 800);
 })();
 </script>`;
