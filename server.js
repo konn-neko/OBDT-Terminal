@@ -567,7 +567,31 @@ body.sos-theme{--cyan:#ff5470;--cyan-bright:#ffc2cd;--text:#ffd9e0;--muted:#c07a
 background-image:radial-gradient(ellipse at 50% -10%,#3a0a14 0%,#0f0307 60%)}
 body.sos-theme .card{box-shadow:0 0 44px rgba(255,84,112,.20);background:rgba(24,7,11,.94)}
 body.sos-theme .meta div{background:rgba(20,5,9,.6)}
-body.sos-theme .text{background:#12040a}`;
+body.sos-theme .text{background:#12040a}
+/* ---------- error pages: full terminal screen draw ---------- */
+#fx-vignette{position:fixed;inset:0;pointer-events:none;z-index:49;
+background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+.card.screen-frame::before,.card.screen-frame::after{content:"";position:absolute;width:22px;height:22px;border:2px solid var(--cyan);z-index:2;pointer-events:none}
+.card.screen-frame::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.card.screen-frame::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.screen-head{padding:10px 20px;text-align:center;font-size:11px;letter-spacing:5px;color:var(--muted);border-bottom:1px solid var(--line)}
+/* CSS padlock (403 pages) */
+.lock{position:relative;width:64px;height:50px;margin:10px auto 22px;border:3px solid var(--red);border-radius:10px;background:rgba(255,84,112,.08);box-shadow:0 0 26px rgba(255,84,112,.30)}
+.lock::before{content:"";position:absolute;left:50%;top:-24px;transform:translateX(-50%);width:32px;height:28px;border:3px solid var(--red);border-bottom:none;border-radius:16px 16px 0 0}
+.lock::after{content:"";position:absolute;left:50%;top:14px;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 9px 0 -1px var(--red)}
+/* ---------- 404: SIGNAL LOST ---------- */
+.glitch{display:inline-block;font-size:34px;letter-spacing:8px;color:var(--cyan-bright);text-shadow:2px 0 rgba(255,84,112,.75),-2px 0 rgba(70,200,255,.75);animation:glitch 3.1s infinite steps(1)}
+@keyframes glitch{0%,88%,100%{transform:none;opacity:1}89%{transform:translateX(-2px) skewX(-5deg);opacity:.8}91%{transform:translateX(2px)}93%{transform:none}}
+.static{height:96px;border:1px solid var(--line);background:repeating-linear-gradient(0deg,rgba(201,232,255,.13) 0 1px,transparent 1px 3px);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.static .nosig{font-size:12px;letter-spacing:6px;color:var(--muted)}
+.static::after{content:"";position:absolute;left:0;right:0;height:26px;top:-30px;background:linear-gradient(180deg,transparent,rgba(174,231,255,.28),transparent);animation:sweep 2.4s linear infinite}
+@keyframes sweep{to{transform:translateY(160px)}}
+.frag{border:1px dashed var(--line-bright);padding:14px 16px;background:rgba(4,12,22,.6);color:var(--muted);font-size:13px;white-space:pre-wrap;text-align:left;margin-bottom:18px}
+.frag b{color:var(--text)}
+.logline{font-size:13px;color:var(--muted);text-align:left;margin:0 0 6px}
+.logline b{color:var(--text)}
+.cursor{display:inline-block;width:9px;height:15px;background:var(--cyan-bright);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}`;
 
 function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass }) {
   const meta = metaRows
@@ -590,30 +614,57 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 }
 
 function permaDeniedPage(message) {
-  const isRestricted = message.includes('RESTRICTED');
-  const isClassified = message.includes('CLASSIFIED');
-  const ogTitle = isRestricted
-    ? 'Restricted Transmission — The Obsidian Directorate'
-    : isClassified
-      ? 'Classified Transmission — The Obsidian Directorate'
-      : 'Transmission Not Found — The Obsidian Directorate';
-  const ogDescription = (isRestricted || isClassified)
-    ? `${message} — Sign in to the terminal to view this transmission.`
-    : 'This transmission reference does not exist.';
+  // Every 403 page: full terminal screen draw (frame, scanlines, vignette),
+  // full crimson theme, and a lock.
+  const ogDescription = `${message} — Sign in to the terminal to view this transmission.`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="The Obsidian Directorate">
-<meta property="og:title" content="${escHtml(ogTitle)}">
+<meta property="og:title" content="Access Denied — The Obsidian Directorate">
 <meta property="og:description" content="${escHtml(ogDescription)}">
-<meta name="theme-color" content="#ffb454">
-<title>${escHtml(ogTitle)}</title><style>${PERMA_CSS}</style></head><body>
-<div id="fx-scanlines"></div><div class="card"><div class="denied">
+<meta name="theme-color" content="#ff5470">
+<title>Access Denied — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="sos-theme">
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="card screen-frame">
+<div class="screen-head">OBDT-TERMINAL // SECURE CHANNEL</div>
+<div class="banner sos">🔒 ACCESS DENIED 🔒</div>
+<div class="body"><div class="denied">
 <div class="stamp">THE OBSIDIAN DIRECTORATE</div>
+<div class="lock" role="img" aria-label="Locked"></div>
 <div class="code">${escHtml(message)}</div>
 <div style="color:var(--muted);font-size:13px;margin-bottom:24px">This transmission reference is beyond your current clearance.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
-</div></div></body></html>`;
+</div></div></div></body></html>`;
+}
+
+// Every 404 page: a SIGNAL LOST surprise — the archive claims the reference
+// never existed. Partial-recovery fragment, search log, static sweep.
+function permaNotFoundPage() {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Obsidian Directorate">
+<meta property="og:title" content="Signal Lost — The Obsidian Directorate">
+<meta property="og:description" content="This transmission reference does not exist. The archive denies everything.">
+<meta name="theme-color" content="#46c8ff">
+<title>Signal Lost — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body>
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="card screen-frame">
+<div class="screen-head">OBDT-TERMINAL // ARCHIVE UPLINK</div>
+<div class="banner cls">THE OBSIDIAN DIRECTORATE — ARCHIVE</div>
+<div class="body"><div class="denied">
+<div class="glitch">404 // SIGNAL LOST</div>
+<div class="static"><span class="nosig">NO CARRIER</span></div>
+<div class="frag">// PARTIAL RECOVERY — 12% //
+&gt; ...████... reference ...████... not found ...
+&gt; ...signal degraded beyond recovery...
+&gt; ...last known position: <b>UNKNOWN</b> ...</div>
+<div class="logline">&gt; QUERYING ARCHIVE ... <b>NO MATCH</b></div>
+<div class="logline">&gt; SWEEPING RELAY NODES ... <b>NO CARRIER</b></div>
+<div class="logline">&gt; CHECKING PURGED RECORDS ... <b>REDACTED</b></div>
+<div class="logline">&gt; CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY. <span class="cursor"></span></div>
+<div style="color:var(--muted);font-size:13px;margin:18px 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
+<div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
+</div></div></div></body></html>`;
 }
 
 // Resolve a permalink request: { status, report?, denial? }
@@ -633,7 +684,8 @@ function servePermalink(req, res, ref) {
   const user = session ? session.user : null;
   const result = resolveRef(ref, user);
   if (result.status !== 200) {
-    return sendHtml(res, result.status, permaDeniedPage(result.denial));
+    if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial));
+    return sendHtml(res, 404, permaNotFoundPage());
   }
   const r = publicReport(result.report);
   const isSos = r.type === 'SOS';
@@ -1054,13 +1106,11 @@ function serveStatic(req, res) {
   if (p === '/') p = '/index.html';
   const file = path.normalize(path.join(PUBLIC_DIR, p));
   if (!file.startsWith(PUBLIC_DIR + path.sep)) {
-    res.writeHead(403);
-    return res.end('forbidden');
+    return sendHtml(res, 403, permaDeniedPage('FORBIDDEN — ACCESS DENIED'));
   }
   fs.readFile(file, (err, data) => {
     if (err) {
-      res.writeHead(404, { 'X-Content-Type-Options': 'nosniff' });
-      return res.end('not found');
+      return sendHtml(res, 404, permaNotFoundPage());
     }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
