@@ -668,7 +668,9 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
 #term-view{max-width:760px;width:100%;position:relative;z-index:1;padding:24px;background:#03080f;color:#46c8ff;font-family:var(--mono)}
 #term-view pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.7;margin:0;color:#46c8ff}
 .term-back{display:inline-block;margin-top:24px;color:#46c8ff;text-decoration:none;font-size:13px;letter-spacing:2px}
-.term-back:hover{color:#aee7ff;text-decoration:underline}`;
+.term-back:hover{color:#aee7ff;text-decoration:underline}
+/* In terminal mode the animated bands stay out of the terminal view */
+body.terminal-mode .rollbar,body.terminal-mode #fx-sweep{display:none}`;
 
 // BIOS page overlay: a POST-style boot screen shown on every page load.
 // Variants: 'standard' (normal pages), 'corrupt' (404: pure corrupted BIOS),
@@ -697,11 +699,9 @@ function biosOverlay(variant) {
   var ready = false;
   var variant = bios.getAttribute('data-variant') || 'standard';
   function applyIface(iface){
-    // Error pages keep their own themes; the choice is still stored for
-    // the main site.
-    if (variant !== 'highcommand' && variant !== 'corrupt') {
-      document.body.classList.toggle('terminal-mode', iface === 'terminal');
-    }
+    // The class is the mode signal on every page: normal pages, and the
+    // error pages, whose own terminal views follow it.
+    document.body.classList.toggle('terminal-mode', iface === 'terminal');
     var opts = bios.querySelectorAll('.bios-opt');
     for (var k = 0; k < opts.length; k++) {
       opts[k].classList.toggle('selected', opts[k].getAttribute('data-iface') === iface);
@@ -892,6 +892,25 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 </div></div>${termView}</body></html>`;
 }
 
+// Terminal view: when Terminal is the chosen interface, hide the GUI card
+// and show the terminal transcript instead (follows body.terminal-mode).
+function termViewSyncScript() {
+  return `<script>
+(function(){
+  var termView = document.getElementById('term-view');
+  var card = document.querySelector('.card');
+  if (!termView || !card) return;
+  function sync(){
+    var term = document.body.classList.contains('terminal-mode');
+    card.hidden = term;
+    termView.hidden = !term;
+  }
+  sync();
+  setInterval(sync, 250);
+})();
+</script>`;
+}
+
 function permaDeniedPage(message) {
   // Every 403 page: full terminal screen draw (frame, scanlines, vignette),
   // full crimson theme, and a lock.
@@ -914,7 +933,13 @@ function permaDeniedPage(message) {
 <div class="code">${escHtml(message)}</div>
 <div style="color:var(--muted);font-size:13px;margin-bottom:24px">This transmission reference is beyond your current clearance.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
-</div></div></div></body></html>`;
+</div></div></div>
+<div id="term-view" hidden><pre>OBDT-TERMINAL // ACCESS DENIED
+---
+403 // ACCESS DENIED
+[LOCKED]
+${escHtml(message)}
+---</pre><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}</body></html>`;
 }
 
 // Every 404 page: a SIGNAL LOST surprise — the archive claims the reference
@@ -948,7 +973,17 @@ function permaNotFoundPage() {
 <div class="sigbar"><span></span></div>
 <div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
-</div></div></div><script>
+</div></div></div>
+<div id="term-view" hidden><pre>OBDT-TERMINAL // SIGNAL DEGRADED
+---
+404 // SIGNAL LOST
+NO CARRIER
+QUERYING ARCHIVE ... NO MATCH
+SWEEPING RELAY NODES ... NO CARRIER
+CHECKING PURGED RECORDS ... REDACTED
+PACKET LOSS ... 88% ... SIGNAL DEGRADING ...
+CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY.
+---</pre><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}<script>
 (function(){
   // Signal bar: true random jitter, 1–69%, at random intervals.
   var bar = document.querySelector('.sigbar span');

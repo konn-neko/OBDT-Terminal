@@ -2111,11 +2111,9 @@ function termWizard() {
   var ready = false;
   var variant = bios.getAttribute('data-variant') || 'standard';
   function applyIface(iface){
-    // Error pages keep their own themes; the choice is still stored for
-    // the main site.
-    if (variant !== 'highcommand' && variant !== 'corrupt') {
-      document.body.classList.toggle('terminal-mode', iface === 'terminal');
-    }
+    // The class is the mode signal on every page: normal pages, and the
+    // error pages, whose own terminal views follow it.
+    document.body.classList.toggle('terminal-mode', iface === 'terminal');
     var opts = bios.querySelectorAll('.bios-opt');
     for (var k = 0; k < opts.length; k++) {
       opts[k].classList.toggle('selected', opts[k].getAttribute('data-iface') === iface);

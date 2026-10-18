@@ -43,8 +43,9 @@ read, new, copy, purge, personnel, roles, requests, lockdown, clear; `gui`
 returns to the GUI), and the saved reports list under the terminal view on
 entry. Saved reports (permalink pages) render as a terminal transcript
 when Terminal is selected. Pick with a click, G / T, or Enter for GUI; the choice is saved and
-applies to the main site. 403/404 pages keep their own themes.
-Reduced-motion skips the BIOS. Each POST line types out character by character (30ms/char)
+applies to the main site. 403/404 pages keep their own themes in GUI mode
+and get a terminal view when Terminal is selected. Reduced-motion skips
+the BIOS. Each POST line types out character by character (30ms/char)
 behind a blinking block cursor, pauses a beat with the cursor blinking,
 then stamps a [OK] / [FAIL] / [WARN] indicator, with a longer gap before
 the next line. Standard POST on normal pages; pure corrupted BIOS on 404
