@@ -591,7 +591,43 @@ background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100
 .logline{font-size:13px;color:var(--muted);text-align:left;margin:0 0 6px}
 .logline b{color:var(--text)}
 .cursor{display:inline-block;width:9px;height:15px;background:var(--cyan-bright);vertical-align:-2px;animation:blink 1s steps(2) infinite}
-@keyframes blink{50%{opacity:0}}`;
+@keyframes blink{50%{opacity:0}}
+/* ---------- 403: frame draws itself in, like the detail card's frame ---------- */
+.card.screen-frame.draw{border-color:transparent}
+.draw-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:visible}
+.draw-svg rect{fill:none;stroke:var(--red);stroke-width:2;vector-effect:non-scaling-stroke;stroke-dasharray:1;stroke-dashoffset:1;animation:draw-frame 1.1s ease .15s forwards}
+@keyframes draw-frame{to{stroke-dashoffset:0}}
+.card.screen-frame.draw::before,.card.screen-frame.draw::after{animation:corner-in .35s ease 1.25s both}
+@keyframes corner-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+.draw .denied{animation:content-in .4s ease 1.05s both}
+@keyframes content-in{from{opacity:0}to{opacity:1}}
+/* ---------- 404: black + corruption / signal degradation ---------- */
+body.lost{background:#000;background-image:none}
+body.lost .card{background:#000;border-color:#1a1a1a;animation:frame-corrupt 4.2s infinite steps(1)}
+@keyframes frame-corrupt{0%,91%,100%{border-color:#1a1a1a}92%{border-color:#000}94%{border-color:#3a3a3a}96%{border-color:#000}98%{border-color:#222}}
+body.lost .banner{border-color:#1a1a1a;background:#000;color:#5f87a8}
+body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
+body.lost{animation:page-flicker 6s infinite steps(1)}
+@keyframes page-flicker{0%,93%,100%{opacity:1}94%{opacity:.86}95%{opacity:1}97%{opacity:.92}}
+.glitch{position:relative}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;opacity:.7;pointer-events:none}
+.glitch::before{color:#ff5470;clip-path:inset(0 0 52% 0);animation:glitch-a 2.3s infinite steps(1)}
+.glitch::after{color:#46c8ff;clip-path:inset(52% 0 0 0);animation:glitch-b 2.9s infinite steps(1)}
+@keyframes glitch-a{0%,86%,100%{transform:none;opacity:.7}87%{transform:translate(-5px,2px);opacity:1}89%{transform:translate(4px,-2px)}91%{transform:translate(-2px,1px)}93%{transform:none}}
+@keyframes glitch-b{0%,84%,100%{transform:none;opacity:.7}85%{transform:translate(5px,-2px);opacity:1}88%{transform:translate(-4px,2px)}90%{transform:translate(2px,-1px)}92%{transform:none}}
+.static{animation:static-noise .22s infinite steps(2)}
+@keyframes static-noise{0%{background-position:0 0}50%{background-position:0 4px}100%{background-position:0 -3px}}
+.rollbar{position:fixed;left:0;right:0;height:70px;top:-80px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.05),transparent);pointer-events:none;z-index:60;animation:roll 7s linear infinite}
+@keyframes roll{to{transform:translateY(120vh)}}
+.sigbar{height:10px;border:1px solid #333;background:#000;margin:4px 0 18px;position:relative;overflow:hidden}
+.sigbar span{display:block;height:100%;width:12%;background:repeating-linear-gradient(90deg,#ff5470 0 6px,#30060d 6px 10px);animation:sig-jitter 1.7s infinite steps(1)}
+@keyframes sig-jitter{0%,80%,100%{width:12%}81%{width:7%}84%{width:16%}88%{width:4%}92%{width:11%}}
+@media (prefers-reduced-motion:reduce){
+.draw-svg rect,.card.screen-frame.draw::before,.card.screen-frame.draw::after,.draw .denied{animation:none!important}
+.draw-svg rect{stroke-dashoffset:0}
+.glitch::before,.glitch::after,.static::after,.rollbar,body.lost,body.lost .card,.sigbar span{animation:none!important}
+.glitch::before,.glitch::after{display:none}
+}`;
 
 function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass }) {
   const meta = metaRows
@@ -625,7 +661,8 @@ function permaDeniedPage(message) {
 <meta property="og:description" content="${escHtml(ogDescription)}">
 <meta name="theme-color" content="#ff5470">
 <title>Access Denied — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="sos-theme">
-<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="card screen-frame">
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="card screen-frame draw">
+<svg class="draw-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" pathLength="1"/></svg>
 <div class="screen-head">OBDT-TERMINAL // SECURE CHANNEL</div>
 <div class="banner sos">🔒 ACCESS DENIED 🔒</div>
 <div class="body"><div class="denied">
@@ -645,24 +682,28 @@ function permaNotFoundPage() {
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="The Obsidian Directorate">
 <meta property="og:title" content="Signal Lost — The Obsidian Directorate">
-<meta property="og:description" content="This transmission reference does not exist. The archive denies everything.">
-<meta name="theme-color" content="#46c8ff">
-<title>Signal Lost — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body>
-<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="card screen-frame">
-<div class="screen-head">OBDT-TERMINAL // ARCHIVE UPLINK</div>
+<meta property="og:description" content="This transmission reference does not exist. Signal lost — the archive denies everything.">
+<meta name="theme-color" content="#000000">
+<title>Signal Lost — Obsidian Directorate</title><style>${PERMA_CSS}</style></head><body class="lost">
+<div id="fx-vignette"></div><div id="fx-scanlines"></div><div class="rollbar"></div><div class="card screen-frame">
+<div class="screen-head">OBDT-TERMINAL // SIGNAL DEGRADED</div>
 <div class="banner cls">THE OBSIDIAN DIRECTORATE — ARCHIVE</div>
 <div class="body"><div class="denied">
-<div class="glitch">404 // SIGNAL LOST</div>
+<div class="glitch" data-text="404 // SIGNAL LOST">404 // SIGNAL LOST</div>
 <div class="static"><span class="nosig">NO CARRIER</span></div>
 <div class="frag">// PARTIAL RECOVERY — 12% //
 &gt; ...████... reference ...████... not found ...
 &gt; ...signal degraded beyond recovery...
+&gt; ...CRC CHECKSUM ... <b>FAIL</b> ... 0xDEADBEEF ...
 &gt; ...last known position: <b>UNKNOWN</b> ...</div>
 <div class="logline">&gt; QUERYING ARCHIVE ... <b>NO MATCH</b></div>
 <div class="logline">&gt; SWEEPING RELAY NODES ... <b>NO CARRIER</b></div>
 <div class="logline">&gt; CHECKING PURGED RECORDS ... <b>REDACTED</b></div>
+<div class="logline">&gt; PACKET LOSS ... <b>88%</b> ... SIGNAL DEGRADING ...</div>
 <div class="logline">&gt; CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY. <span class="cursor"></span></div>
-<div style="color:var(--muted);font-size:13px;margin:18px 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
+<div style="color:var(--muted);font-size:13px;margin:18px 0 6px">SIGNAL</div>
+<div class="sigbar"><span></span></div>
+<div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
 </div></div></div></body></html>`;
 }

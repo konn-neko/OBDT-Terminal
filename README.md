@@ -32,7 +32,8 @@ High Command role cannot be deleted or demoted.
 Reference links (`/archive/<REF>`) enforce the same tiers: a guest opening a
 restricted reference sees **RESTRICTED — MEMBER SIGN-IN REQUIRED**; a viewer
 without High Command clearance opening a classified reference sees the
-**ACCESS DENIED** page; unknown references get the **SIGNAL LOST** page.
+**ACCESS DENIED** page; unknown references get the black, glitching
+**SIGNAL LOST** page (corrupted frame, degrading signal).
 
 SOS reports are always filed as **declassified** (forced at save time) and
 render in crimson red.
