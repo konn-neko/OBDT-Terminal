@@ -45,12 +45,18 @@ entry. When Terminal is selected, the second boot sequence (gate, boot,
 startup) also fits the terminal: a plain `obdt:~$` prompt (Enter works,
 no click needed), the boot log and startup checks as plain text, no
 GUI frames, rings, or bars. Saved reports (permalink pages) render as a
-full-viewport terminal transcript — `obdt:~$ cat /archive/<REF>` and the
-report, ending on a fresh prompt with a blinking cursor — when Terminal
-is selected. Pick with a click, G / T, or Enter for GUI; the choice is
-saved and applies to the main site. 403/404 pages keep their own themes
-in GUI mode and get a terminal view when Terminal is selected (403: the
-denial as a failed `cat`; 404: the SIGNAL LOST log as a failed `cat`).
+full-viewport terminal shell — the same header, scroll, and prompt line
+as the main site's terminal, `user@obdt:~$ cat /archive/<REF>` and the
+report — when Terminal is selected. Pick with a click, G / T, or Enter
+for GUI; the choice is saved and applies to the main site. 403/404
+pages keep their own themes in GUI mode and get a terminal view when
+Terminal is selected: the 403 terminal is crimson with a HIGH COMMAND
+header and a boot that fails on clearance; the 404 terminal is black
+with a glitching header and a boot that fails on signal. Both run the
+second boot sequence (gate, then boot lines) in their own aesthetic
+before the transcript. The terminal keeps the site theme everywhere:
+403 crimson, 404 black, main site cyan, and lockdown crimson with the
+lockdown banner printed in the shell.
 Reduced-motion skips the BIOS. Each POST line types out character by
 character (30ms/char) behind a blinking block cursor, pauses a beat with
 then stamps a [OK] / [FAIL] / [WARN] indicator, with a longer gap before

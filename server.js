@@ -664,14 +664,28 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
 /* 404 BIOS: rare degradation bursts — RGB split + garbled header, then quiet */
 #bios.bios-corrupt.bios-glitch .bios-head{text-shadow:3px 0 rgba(255,0,80,.8),-3px 0 rgba(0,255,255,.8);transform:translateX(1px)}
 #bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}
-/* Saved report / error page in terminal format (Terminal interface selected):
-   a full-viewport terminal, not a centered card. */
-#term-view{position:fixed;inset:0;z-index:1;overflow-y:auto;padding:24px;background:#03080f;color:#46c8ff;font-family:var(--mono)}
-#term-view pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.7;margin:0;color:#46c8ff}
-.term-prompt{margin-top:12px}
-.term-cursor{display:inline-block;color:#46c8ff;animation:blink 1s steps(2) infinite}
-.term-back{display:inline-block;margin-top:24px;color:#46c8ff;text-decoration:none;font-size:13px;letter-spacing:2px}
-.term-back:hover{color:#aee7ff;text-decoration:underline}
+/* Terminal views (reports / 403 / 404): look like the main site's terminal
+   shell — header, scroll, prompt line at the bottom — and keep the page's
+   own theme via the CSS variables (403 crimson via sos-theme, 404 black,
+   SOS reports crimson via sos-theme). */
+#term-view{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;background:var(--bg0);color:var(--cyan);font-family:var(--mono)}
+body.sos-theme #term-view{background:#12040a}
+body.lost #term-view{background:#000}
+.term-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.term-head{margin-bottom:12px}
+.term-head-title{color:var(--cyan-bright)}
+.term-head-dim{color:var(--muted)}
+/* 404 terminal header keeps the page's RGB-split glitch */
+body.lost #term-view .term-head-title{color:var(--cyan-bright);text-shadow:2px 0 rgba(255,84,112,.75),-2px 0 rgba(70,200,255,.75);animation:glitch 3.1s infinite steps(1)}
+#term-view pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.7;margin:0;color:var(--cyan)}
+#term-boot-gate{color:var(--cyan);letter-spacing:2px;animation:blink 1.6s steps(2) infinite}
+.term-boot-line{color:var(--cyan)}
+.term-ok{color:#4fe08a}.term-fail{color:#ff5470}.term-warn{color:#ffb454}
+.term-line{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--line)}
+.term-prompt{color:var(--cyan)}
+.term-cursor{display:inline-block;color:var(--cyan);animation:blink 1s steps(2) infinite}
+.term-back{margin-left:8px;color:var(--cyan);text-decoration:none;font-size:13px;letter-spacing:2px}
+.term-back:hover{color:var(--cyan-bright);text-decoration:underline}
 /* In terminal mode the animated bands stay out of the terminal view */
 body.terminal-mode .rollbar,body.terminal-mode #fx-sweep{display:none}`;
 
@@ -830,7 +844,7 @@ function biosOverlay(variant) {
 </script>`;
 }
 
-function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass, termData }) {
+function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass, termData, operator }) {
   const meta = metaRows
     .map(([k, v]) => `<div><div class="k">${escHtml(k)}</div><div class="v">${escHtml(v)}</div></div>`)
     .join('');
@@ -848,8 +862,10 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
   if (!dataEl || !termView || !card) return;
   var r;
   try { r = JSON.parse(dataEl.textContent); } catch (e) { return; }
+  var operator = ${JSON.stringify(operator || 'GUEST')};
+  var promptUser = operator === 'GUEST' ? 'guest' : operator;
   var L = [];
-  L.push('obdt:~$ cat /archive/' + (r.ref || ''));
+  L.push(promptUser + '@obdt:~$ cat /archive/' + (r.ref || ''));
   L.push('REF: ' + (r.ref || '—'));
   L.push('CLASSIFICATION: ' + (r.classification || '').toUpperCase());
   L.push('TITLE: ' + r.title);
@@ -865,20 +881,42 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
   L.push('PERMALINK: /archive/' + (r.ref || ''));
   var pre = document.createElement('pre');
   pre.textContent = L.join('\\n');
-  termView.appendChild(pre);
-  var prompt = document.createElement('div');
+  var scroll = document.createElement('div');
+  scroll.className = 'term-scroll';
+  var head = document.createElement('div');
+  head.className = 'term-head';
+  var h1 = document.createElement('div');
+  h1.className = 'term-head-title';
+  h1.textContent = 'THE OBSIDIAN DIRECTORATE — TERMINAL INTERFACE';
+  var h2 = document.createElement('div');
+  h2.className = 'term-head-dim';
+  h2.textContent = 'OBDT-TERMINAL v2.6.1 // ' + (operator === 'GUEST' ? 'GUEST ACCESS — declassified only' : 'OPERATOR: ' + operator);
+  var h3 = document.createElement('div');
+  h3.className = 'term-head-dim';
+  h3.textContent = 'ARCHIVE TRANSMISSION — READ-ONLY';
+  head.appendChild(h1); head.appendChild(h2); head.appendChild(h3);
+  scroll.appendChild(head);
+  var output = document.createElement('div');
+  output.id = 'term-output';
+  output.appendChild(pre);
+  scroll.appendChild(output);
+  termView.appendChild(scroll);
+  var line = document.createElement('div');
+  line.className = 'term-line';
+  var prompt = document.createElement('span');
   prompt.className = 'term-prompt';
-  prompt.textContent = 'obdt:~$ ';
+  prompt.textContent = promptUser + '@obdt:~$ ';
   var cur = document.createElement('span');
   cur.className = 'term-cursor';
   cur.textContent = '█';
-  prompt.appendChild(cur);
-  termView.appendChild(prompt);
+  line.appendChild(prompt);
+  line.appendChild(cur);
   var back = document.createElement('a');
   back.className = 'term-back';
   back.href = '/';
   back.textContent = '← RETURN TO TERMINAL';
-  termView.appendChild(back);
+  line.appendChild(back);
+  termView.appendChild(line);
   function sync(){
     var term = document.body.classList.contains('terminal-mode');
     card.hidden = term;
@@ -904,8 +942,37 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 </div></div>${termView}</body></html>`;
 }
 
-// Terminal view: when Terminal is the chosen interface, hide the GUI card
-// and show the terminal transcript instead (follows body.terminal-mode).
+// Terminal boot sequence for the 403/404 terminal views: a gate (Enter or
+// click) then the boot lines one by one, then the transcript. Guards:
+// only in terminal mode, and only after the BIOS is gone (so the Enter
+// that chose Terminal at the BIOS cannot also fire the gate).
+function termBootScript() {
+  return `<script>
+(function(){
+  var termView = document.getElementById('term-view');
+  var bootGate = document.getElementById('term-boot-gate');
+  var bootLog = document.getElementById('term-boot-log');
+  var output = document.getElementById('term-output');
+  if (!termView || !bootGate || !bootLog || !output) return;
+  var started = false;
+  function startBoot(){
+    if (started) return;
+    if (!document.body.classList.contains('terminal-mode')) return;
+    if (document.getElementById('bios')) return;
+    started = true;
+    bootGate.style.display = 'none';
+    var lines = bootLog.children;
+    var i = 0;
+    (function next(){
+      if (i < lines.length) { lines[i].hidden = false; i++; setTimeout(next, 320); }
+      else { output.hidden = false; }
+    })();
+  }
+  termView.addEventListener('click', startBoot);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Enter') startBoot(); });
+})();
+</script>`;
+}
 function termViewSyncScript() {
   return `<script>
 (function(){
@@ -923,11 +990,14 @@ function termViewSyncScript() {
 </script>`;
 }
 
-function permaDeniedPage(message, target) {
+function permaDeniedPage(message, target, operator) {
   // Every 403 page: full terminal screen draw (frame, scanlines, vignette),
   // full crimson theme, and a lock.
   const ogDescription = `${message} — Sign in to the terminal to view this transmission.`;
-  const promptLine = target ? `obdt:~$ cat ${escHtml(target)}` : 'obdt:~$';
+  const op = operator || 'GUEST';
+  const promptUser = op === 'GUEST' ? 'guest' : escHtml(op);
+  const operatorLine = op === 'GUEST' ? 'GUEST ACCESS — declassified only' : `OPERATOR: ${escHtml(op)}`;
+  const promptLine = target ? `${promptUser}@obdt:~$ cat ${escHtml(target)}` : `${promptUser}@obdt:~$`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -947,17 +1017,20 @@ function permaDeniedPage(message, target) {
 <div style="color:var(--muted);font-size:13px;margin-bottom:24px">This transmission reference is beyond your current clearance.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
 </div></div></div>
-<div id="term-view" hidden><pre>${promptLine}
+<div id="term-view" hidden><div class="term-scroll"><div class="term-head"><div class="term-head-title">THE OBSIDIAN DIRECTORATE — TERMINAL INTERFACE</div><div class="term-head-dim">OBDT-TERMINAL v2.6.1 // ${operatorLine}</div><div class="term-head-dim">🔒 TERMINAL TYPE: HIGH COMMAND // ACCESS LEVEL: RESTRICTED</div></div><div id="term-boot"><div id="term-boot-gate">— PRESS ENTER TO ESTABLISH UPLINK —</div><div id="term-boot-log"><div class="term-boot-line" hidden>ESTABLISHING SECURE UPLINK ... <span class="term-ok">[OK]</span></div><div class="term-boot-line" hidden>QUERYING ARCHIVE ... <span class="term-ok">[OK]</span></div><div class="term-boot-line" hidden>VERIFYING CLEARANCE ... <span class="term-fail">[FAIL]</span> RESTRICTED</div><div class="term-boot-line" hidden>ACCESS DENIED — TRANSMISSION LOCKED ... <span class="term-fail">[FAIL]</span></div></div></div><div id="term-output" hidden><pre>${promptLine}
 403 // ACCESS DENIED
 [LOCKED]
 ${escHtml(message)}
----</pre><div class="term-prompt">obdt:~$ <span class="term-cursor">█</span></div><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}</body></html>`;
+---</pre></div></div><div class="term-line"><span class="term-prompt">${promptUser}@obdt:~$ </span><span class="term-cursor">█</span><a class="term-back" href="/">← RETURN TO TERMINAL</a></div></div>${termViewSyncScript()}${termBootScript()}</body></html>`;
 }
 
 // Every 404 page: a SIGNAL LOST surprise — the archive claims the reference
 // never existed. Partial-recovery fragment, search log, static sweep.
-function permaNotFoundPage(target) {
-  const promptLine = target ? `obdt:~$ cat ${escHtml(target)}` : 'obdt:~$';
+function permaNotFoundPage(target, operator) {
+  const op = operator || 'GUEST';
+  const promptUser = op === 'GUEST' ? 'guest' : escHtml(op);
+  const operatorLine = op === 'GUEST' ? 'GUEST ACCESS — declassified only' : `OPERATOR: ${escHtml(op)}`;
+  const promptLine = target ? `${promptUser}@obdt:~$ cat ${escHtml(target)}` : `${promptUser}@obdt:~$`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -987,7 +1060,7 @@ function permaNotFoundPage(target) {
 <div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
 </div></div></div>
-<div id="term-view" hidden><pre>${promptLine}
+<div id="term-view" hidden><div class="term-scroll"><div class="term-head"><div class="term-head-title">THE OBSIDIAN DIRECTORATE — TERMINAL INTERFACE</div><div class="term-head-dim">OBDT-TERMINAL v2.6.1 // ${operatorLine}</div><div class="term-head-dim">SIGNAL DEGRADED // NO CARRIER</div></div><div id="term-boot"><div id="term-boot-gate">— PRESS ENTER TO ESTABLISH UPLINK —</div><div id="term-boot-log"><div class="term-boot-line" hidden>ESTABLISHING UPLINK ... <span class="term-warn">[WARN]</span> SIGNAL DEGRADED</div><div class="term-boot-line" hidden>QUERYING ARCHIVE ... <span class="term-fail">[FAIL]</span> NO MATCH</div><div class="term-boot-line" hidden>SWEEPING RELAY NODES ... <span class="term-fail">[FAIL]</span> NO CARRIER</div><div class="term-boot-line" hidden>SIGNAL LOST — BOOTING RECOVERY SHELL ... <span class="term-warn">[WARN]</span></div></div></div><div id="term-output" hidden><pre>${promptLine}
 404 // SIGNAL LOST
 NO CARRIER
 QUERYING ARCHIVE ... NO MATCH
@@ -995,7 +1068,7 @@ SWEEPING RELAY NODES ... NO CARRIER
 CHECKING PURGED RECORDS ... REDACTED
 PACKET LOSS ... 88% ... SIGNAL DEGRADING ...
 CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY.
----</pre><div class="term-prompt">obdt:~$ <span class="term-cursor">█</span></div><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}<script>
+---</pre></div></div><div class="term-line"><span class="term-prompt">${promptUser}@obdt:~$ </span><span class="term-cursor">█</span><a class="term-back" href="/">← RETURN TO TERMINAL</a></div></div>${termViewSyncScript()}${termBootScript()}<script>
 (function(){
   // Signal bar: true random jitter, 1–69%, at random intervals.
   var bar = document.querySelector('.sigbar span');
@@ -1028,8 +1101,8 @@ function servePermalink(req, res, ref) {
   const user = session ? session.user : null;
   const result = resolveRef(ref, user);
   if (result.status !== 200) {
-    if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial, '/archive/' + ref));
-    return sendHtml(res, 404, permaNotFoundPage('/archive/' + ref));
+    if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial, '/archive/' + ref, user ? user.username : 'GUEST'));
+    return sendHtml(res, 404, permaNotFoundPage('/archive/' + ref, user ? user.username : 'GUEST'));
   }
   const r = publicReport(result.report);
   const isSos = r.type === 'SOS';
@@ -1073,6 +1146,7 @@ function servePermalink(req, res, ref) {
       themeColor: isSos ? '#ff5470' : '#46c8ff',
       bodyClass: isSos ? 'sos-theme' : '',
       termData: r,
+      operator: user ? user.username : 'GUEST',
     })
   );
 }
