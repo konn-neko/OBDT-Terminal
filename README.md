@@ -65,9 +65,16 @@ OBDT-YYYYMMDD-HHMMSS-NNNN   e.g. OBDT-20261013-143022-0042
 sequence (first report ever filed = `0001`). Revisions never regenerate the REF.
 
 Required fields: **Report Title**, **Reporting CMDR**. Optional: **Signing CMDR**,
-**Sector**, **Directed To**. Intelligence Reports require a subtype; Diplomatic
-Communiques require a Recipient Party. Each report has a permalink at
-`/archive/<REF>`.
+**Sector**, **Directed To**. Intelligence Reports and Directive Orders require a
+subtype; Diplomatic Communiques require a Recipient Party. Each report has a
+permalink at `/archive/<REF>`.
+
+| Report Type | Subtypes / extra fields |
+|---|---|
+| SOS | (none — always DECLASSIFIED) |
+| Intelligence Report | Espionage Attempt, CMDR Sighting, BGS/PowerPlay, Market Changes |
+| Diplomatic Communique | Recipient Party (required) |
+| Directive Orders | Power Play, General BGS |
 
 ## Export formats
 
