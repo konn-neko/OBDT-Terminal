@@ -663,7 +663,12 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
 #bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}
 /* 404 BIOS: rare degradation bursts — RGB split + garbled header, then quiet */
 #bios.bios-corrupt.bios-glitch .bios-head{text-shadow:3px 0 rgba(255,0,80,.8),-3px 0 rgba(0,255,255,.8);transform:translateX(1px)}
-#bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}`;
+#bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}
+/* Saved report in terminal format (Terminal interface selected) */
+#term-view{max-width:760px;width:100%;position:relative;z-index:1;padding:24px;background:#03080f;color:#46c8ff;font-family:var(--mono)}
+#term-view pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.7;margin:0;color:#46c8ff}
+.term-back{display:inline-block;margin-top:24px;color:#46c8ff;text-decoration:none;font-size:13px;letter-spacing:2px}
+.term-back:hover{color:#aee7ff;text-decoration:underline}`;
 
 // BIOS page overlay: a POST-style boot screen shown on every page load.
 // Variants: 'standard' (normal pages), 'corrupt' (404: pure corrupted BIOS),
@@ -822,10 +827,55 @@ function biosOverlay(variant) {
 </script>`;
 }
 
-function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass }) {
+function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, bodyHtml, signHtml, backHref, ogTitle, ogDescription, themeColor, bodyClass, termData }) {
   const meta = metaRows
     .map(([k, v]) => `<div><div class="k">${escHtml(k)}</div><div class="v">${escHtml(v)}</div></div>`)
     .join('');
+  // Terminal format: when Terminal is the chosen interface, the saved
+  // report renders as a terminal transcript instead of the GUI card.
+  // The view follows the BIOS interface choice (polls body.terminal-mode).
+  const termView = termData ? `
+<div id="term-view" hidden></div>
+<script type="application/json" id="report-data">${JSON.stringify(termData).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')}</script>
+<script>
+(function(){
+  var dataEl = document.getElementById('report-data');
+  var termView = document.getElementById('term-view');
+  var card = document.querySelector('.card');
+  if (!dataEl || !termView || !card) return;
+  var r;
+  try { r = JSON.parse(dataEl.textContent); } catch (e) { return; }
+  var L = [];
+  L.push('REF: ' + (r.ref || '—'));
+  L.push('CLASSIFICATION: ' + (r.classification || '').toUpperCase());
+  L.push('TITLE: ' + r.title);
+  L.push('REPORT TYPE: ' + r.type + (r.subtype ? ' / ' + r.subtype : ''));
+  L.push('FILED BY: ' + (r.reportingCmdr || '—') + (r.signingCmdr ? ' — SIGNED: ' + r.signingCmdr : ''));
+  if (r.sector) L.push('SECTOR: ' + r.sector);
+  if (r.directedTo) L.push('DIRECTED TO: ' + r.directedTo);
+  if (r.recipient) L.push('RECIPIENT PARTY: ' + r.recipient);
+  L.push('FILED: ' + new Date(r.createdAt).toLocaleString());
+  L.push('---');
+  L.push(r.body || '');
+  L.push('---');
+  L.push('PERMALINK: /archive/' + (r.ref || ''));
+  var pre = document.createElement('pre');
+  pre.textContent = L.join('\\n');
+  termView.appendChild(pre);
+  var back = document.createElement('a');
+  back.className = 'term-back';
+  back.href = '/';
+  back.textContent = '← RETURN TO TERMINAL';
+  termView.appendChild(back);
+  function sync(){
+    var term = document.body.classList.contains('terminal-mode');
+    card.hidden = term;
+    termView.hidden = !term;
+  }
+  sync();
+  setInterval(sync, 250);
+})();
+</script>` : '';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -839,7 +889,7 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
 <div class="body">${titleHtml}${refLine}<div class="meta">${meta}</div>
 <div class="text">${bodyHtml}</div>${signHtml}
 <div style="margin-top:8px"><a class="ret" href="${backHref}">&larr; RETURN TO ARCHIVE</a></div>
-</div></div></body></html>`;
+</div></div>${termView}</body></html>`;
 }
 
 function permaDeniedPage(message) {
@@ -975,6 +1025,7 @@ function servePermalink(req, res, ref) {
       ogDescription,
       themeColor: isSos ? '#ff5470' : '#46c8ff',
       bodyClass: isSos ? 'sos-theme' : '',
+      termData: r,
     })
   );
 }

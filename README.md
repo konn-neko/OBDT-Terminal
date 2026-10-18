@@ -41,7 +41,8 @@ standard look, TERMINAL replaces the app with a pure command-line terminal
 in the site's cyan palette — no GUI, just a prompt (help, login, archive,
 read, new, copy, purge, personnel, roles, requests, lockdown, clear; `gui`
 returns to the GUI), and the saved reports list under the terminal view on
-entry. Pick with a click, G / T, or Enter for GUI; the choice is saved and
+entry. Saved reports (permalink pages) render as a terminal transcript
+when Terminal is selected. Pick with a click, G / T, or Enter for GUI; the choice is saved and
 applies to the main site. 403/404 pages keep their own themes.
 Reduced-motion skips the BIOS. Each POST line types out character by character (30ms/char)
 behind a blinking block cursor, pauses a beat with the cursor blinking,
