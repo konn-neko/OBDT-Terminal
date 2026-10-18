@@ -641,6 +641,8 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 .bios-lines{min-height:170px;white-space:pre-wrap}
 .bios-lines .ok{color:#4fe08a}
 .bios-lines .fail{color:#ff5470}
+.bios-lines .warn{color:#ffb454}
+.type-cursor{color:#fff;animation:blink .8s steps(2) infinite}
 .bios-foot{margin-top:18px;color:#fff;opacity:0;transition:opacity .3s}
 #bios.bios-ready .bios-foot{opacity:1}
 .bios-cursor{display:inline-block;width:9px;height:15px;background:#c0c0c0;vertical-align:-2px;animation:blink 1s steps(2) infinite}
@@ -649,6 +651,7 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 #bios.bios-red .bios-head,#bios.bios-red .bios-foot{color:#ff5470}
 #bios.bios-red .bios-lines .ok{color:#ff5470}
 #bios.bios-red .bios-cursor{background:#ff5470}
+#bios.bios-red .type-cursor{color:#ff5470}
 /* 404: pure corrupted BIOS */
 #bios.bios-corrupt{animation:page-flicker 6s infinite steps(1)}
 #bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}`;
@@ -683,39 +686,59 @@ function biosOverlay(variant) {
   var lines;
   if (variant === 'corrupt') {
     lines = [
-      'MEMORY TEST:  640K OK ......... <span class="fail">██████ FAIL</span>',
-      'DETECTING UPLINK ............ <span class="fail">NO CARRIER</span>',
-      'DETECTING ARCHIVE ........... <span class="fail">NOT FOUND</span>',
-      'BIOS CHECKSUM ............... <span class="fail">CORRUPT</span>',
-      'CMOS ........................ <span class="fail">CORRUPT</span>',
-      'SIGNAL LOST — BOOTING RECOVERY SHELL'
+      { text: 'MEMORY TEST:  640K OK ......... ', status: 'fail', tag: 'FAIL', detail: '██████ FAIL' },
+      { text: 'DETECTING UPLINK ............ ', status: 'fail', tag: 'FAIL', detail: 'NO CARRIER' },
+      { text: 'DETECTING ARCHIVE ........... ', status: 'fail', tag: 'FAIL', detail: 'NOT FOUND' },
+      { text: 'BIOS CHECKSUM ............... ', status: 'fail', tag: 'FAIL', detail: 'CORRUPT' },
+      { text: 'CMOS ........................ ', status: 'fail', tag: 'FAIL', detail: 'CORRUPT' },
+      { text: 'SIGNAL LOST — BOOTING RECOVERY SHELL', status: 'none', tag: '', detail: '' }
     ];
   } else if (variant === 'highcommand') {
     lines = [
-      'MEMORY TEST:  640K OK ......... <span class="ok">65536K OK</span>',
-      'DETECTING UPLINK ............ <span class="ok">OK</span>',
-      'DETECTING CLEARANCE ......... <span class="fail">RESTRICTED</span>',
-      '!! CLEARANCE OVERRIDE DETECTED !!',
-      'TERMINAL TYPE: HIGH COMMAND',
-      'ACCESS LEVEL: RESTRICTED — SIGN-IN REQUIRED'
+      { text: 'MEMORY TEST:  640K OK ......... ', status: 'ok', tag: 'OK', detail: '65536K OK' },
+      { text: 'DETECTING UPLINK ............ ', status: 'ok', tag: 'OK', detail: '' },
+      { text: 'DETECTING CLEARANCE ......... ', status: 'fail', tag: 'FAIL', detail: 'RESTRICTED' },
+      { text: '!! CLEARANCE OVERRIDE DETECTED !! ', status: 'warn', tag: 'WARN', detail: '' },
+      { text: 'TERMINAL TYPE: HIGH COMMAND ', status: 'warn', tag: 'WARN', detail: '' },
+      { text: 'ACCESS LEVEL: RESTRICTED — SIGN-IN REQUIRED', status: 'warn', tag: 'WARN', detail: '' }
     ];
   } else {
     lines = [
-      'MEMORY TEST:  640K OK ......... <span class="ok">65536K OK</span>',
-      'DETECTING UPLINK ............ <span class="ok">OK</span>',
-      'DETECTING ARCHIVE ........... <span class="ok">OK</span>',
-      'LOADING TERMINAL ............ <span class="ok">OK</span>'
+      { text: 'MEMORY TEST:  640K OK ......... ', status: 'ok', tag: 'OK', detail: '65536K OK' },
+      { text: 'DETECTING UPLINK ............ ', status: 'ok', tag: 'OK', detail: '' },
+      { text: 'DETECTING ARCHIVE ........... ', status: 'ok', tag: 'OK', detail: '' },
+      { text: 'LOADING TERMINAL ............ ', status: 'ok', tag: 'OK', detail: '' }
     ];
   }
   var i = 0;
-  function showNext(){
+  function typeLine(){
     if (i >= lines.length) { setTimeout(function(){ ready = true; bios.classList.add('bios-ready'); }, 600); return; }
+    var line = lines[i];
     var div = document.createElement('div');
-    div.innerHTML = lines[i];
+    var cursor = document.createElement('span');
+    cursor.className = 'type-cursor';
+    cursor.textContent = '█';
+    div.appendChild(cursor);
     linesEl.appendChild(div);
-    if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
-    i++;
-    setTimeout(showNext, 500);
+    var j = 0;
+    (function typeChar(){
+      if (j < line.text.length) {
+        div.insertBefore(document.createTextNode(line.text.charAt(j)), cursor);
+        j++;
+        setTimeout(typeChar, 16);
+      } else {
+        div.removeChild(cursor);
+        if (line.status && line.status !== 'none') {
+          var res = document.createElement('span');
+          res.className = line.status;
+          res.textContent = ' [' + line.tag + ']' + (line.detail ? ' ' + line.detail : '');
+          div.appendChild(res);
+        }
+        if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
+        i++;
+        setTimeout(typeLine, 350);
+      }
+    })();
   }
   if (variant === 'corrupt') {
     var head = bios.querySelector('.bios-head');
@@ -728,7 +751,7 @@ function biosOverlay(variant) {
   }
   bios.addEventListener('click', dismiss);
   document.addEventListener('keydown', dismiss);
-  setTimeout(showNext, 600);
+  setTimeout(typeLine, 600);
 })();
 </script>`;
 }

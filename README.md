@@ -37,9 +37,11 @@ without High Command clearance opening a classified reference sees the
 
 Every page — the main terminal and every permalink — opens with a BIOS
 POST screen that runs slower, then waits at PRESS ANY KEY TO ENTER (any
-key or click enters; reduced-motion skips it). Standard on normal pages;
-pure corrupted BIOS on 404; on 403 it starts standard, then midway cycles
-to red and flags the terminal as HIGH COMMAND with clearance restricted.
+key or click enters; reduced-motion skips it). Each POST line types out
+character by character behind a blinking block cursor, then stamps a
+[OK] / [FAIL] / [WARN] indicator. Standard on normal pages; pure corrupted
+BIOS on 404; on 403 it starts standard, then midway cycles to red and
+flags the terminal as HIGH COMMAND with clearance restricted.
 
 SOS reports are always filed as **declassified** (forced at save time) and
 render in crimson red.
