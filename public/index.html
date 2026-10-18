@@ -95,6 +95,29 @@ body{
 .gate-big{font-size:34px;letter-spacing:10px;color:var(--cyan-bright);margin:14px 0;
   text-shadow:0 0 18px rgba(70,200,255,.8)}
 .gate-sub{color:var(--cyan);letter-spacing:3px;animation:blink 1.6s steps(2) infinite}
+.gate-term{display:none}
+.term-cursor{display:inline-block;color:var(--cyan);animation:blink 1s steps(2) infinite}
+
+/* ---------- terminal-mode boot sequence: plain terminal, no GUI chrome ---------- */
+/* Scoped to the gate/boot/startup screens only (the app itself is a real shell). */
+body.terminal-mode #screen-boot-gate,body.terminal-mode #screen-boot,body.terminal-mode #screen-startup{
+  align-items:flex-start;justify-content:flex-start;background:#03080f;padding:24px;text-align:left}
+body.terminal-mode .gate-frame{display:none}
+body.terminal-mode .gate-term{display:block;color:var(--cyan);font-size:14px}
+body.terminal-mode .boot-shell,body.terminal-mode .su-stage{
+  border:none;background:transparent;box-shadow:none;min-height:0;padding:0;max-width:none}
+body.terminal-mode .su-stage::before,body.terminal-mode .su-stage::after{display:none}
+body.terminal-mode .boot-stamp,body.terminal-mode .boot-rings,body.terminal-mode .boot-foot,
+body.terminal-mode .su-sweep,body.terminal-mode .su-title,body.terminal-mode .su-rings,
+body.terminal-mode .su-telem,body.terminal-mode .su-foot{display:none}
+body.terminal-mode .boot-bar-wrap,body.terminal-mode .su-bar-wrap{
+  border:none;background:transparent;height:auto;margin:8px 0 0}
+body.terminal-mode #boot-bar,body.terminal-mode #startup-bar{display:none}
+body.terminal-mode #boot-pct,body.terminal-mode #startup-pct{
+  position:static;display:block;color:var(--cyan);font-size:14px}
+body.terminal-mode #boot-log{padding:0}
+body.terminal-mode .su-cols{display:block}
+body.terminal-mode .su-checks{font-size:14px}
 @keyframes blink{50%{opacity:.25}}
 
 /* ---------- boot sequence ---------- */
@@ -400,6 +423,7 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
     <div class="gate-big">INITIALIZE</div>
     <div class="gate-sub">— CLICK TO ESTABLISH UPLINK —</div>
   </div>
+  <div class="gate-term">obdt:~$ PRESS ENTER TO ESTABLISH UPLINK <span class="term-cursor">█</span></div>
 </div>
 
 <!-- BOOT SEQUENCE -->
@@ -2100,6 +2124,17 @@ function termWizard() {
       }, 250);
     }
   }, { once: true });
+  // Terminal mode: Enter also establishes the uplink (no click needed).
+  // The BIOS guard stops this firing while the BIOS is still up — the
+  // BIOS consumes Enter for the interface choice, and the gate screen
+  // sits behind it.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !document.getElementById('bios')
+        && !$('screen-boot-gate').hidden
+        && document.body.classList.contains('terminal-mode')) {
+      $('screen-boot-gate').click();
+    }
+  });
 })();
 </script>
 <script>

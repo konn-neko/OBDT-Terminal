@@ -664,9 +664,12 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
 /* 404 BIOS: rare degradation bursts — RGB split + garbled header, then quiet */
 #bios.bios-corrupt.bios-glitch .bios-head{text-shadow:3px 0 rgba(255,0,80,.8),-3px 0 rgba(0,255,255,.8);transform:translateX(1px)}
 #bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}
-/* Saved report in terminal format (Terminal interface selected) */
-#term-view{max-width:760px;width:100%;position:relative;z-index:1;padding:24px;background:#03080f;color:#46c8ff;font-family:var(--mono)}
+/* Saved report / error page in terminal format (Terminal interface selected):
+   a full-viewport terminal, not a centered card. */
+#term-view{position:fixed;inset:0;z-index:1;overflow-y:auto;padding:24px;background:#03080f;color:#46c8ff;font-family:var(--mono)}
 #term-view pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.7;margin:0;color:#46c8ff}
+.term-prompt{margin-top:12px}
+.term-cursor{display:inline-block;color:#46c8ff;animation:blink 1s steps(2) infinite}
 .term-back{display:inline-block;margin-top:24px;color:#46c8ff;text-decoration:none;font-size:13px;letter-spacing:2px}
 .term-back:hover{color:#aee7ff;text-decoration:underline}
 /* In terminal mode the animated bands stay out of the terminal view */
@@ -846,6 +849,7 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
   var r;
   try { r = JSON.parse(dataEl.textContent); } catch (e) { return; }
   var L = [];
+  L.push('obdt:~$ cat /archive/' + (r.ref || ''));
   L.push('REF: ' + (r.ref || '—'));
   L.push('CLASSIFICATION: ' + (r.classification || '').toUpperCase());
   L.push('TITLE: ' + r.title);
@@ -862,6 +866,14 @@ function permaPage({ bannerClass, bannerText, titleHtml, refLine, metaRows, body
   var pre = document.createElement('pre');
   pre.textContent = L.join('\\n');
   termView.appendChild(pre);
+  var prompt = document.createElement('div');
+  prompt.className = 'term-prompt';
+  prompt.textContent = 'obdt:~$ ';
+  var cur = document.createElement('span');
+  cur.className = 'term-cursor';
+  cur.textContent = '█';
+  prompt.appendChild(cur);
+  termView.appendChild(prompt);
   var back = document.createElement('a');
   back.className = 'term-back';
   back.href = '/';
@@ -911,10 +923,11 @@ function termViewSyncScript() {
 </script>`;
 }
 
-function permaDeniedPage(message) {
+function permaDeniedPage(message, target) {
   // Every 403 page: full terminal screen draw (frame, scanlines, vignette),
   // full crimson theme, and a lock.
   const ogDescription = `${message} — Sign in to the terminal to view this transmission.`;
+  const promptLine = target ? `obdt:~$ cat ${escHtml(target)}` : 'obdt:~$';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -934,17 +947,17 @@ function permaDeniedPage(message) {
 <div style="color:var(--muted);font-size:13px;margin-bottom:24px">This transmission reference is beyond your current clearance.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
 </div></div></div>
-<div id="term-view" hidden><pre>OBDT-TERMINAL // ACCESS DENIED
----
+<div id="term-view" hidden><pre>${promptLine}
 403 // ACCESS DENIED
 [LOCKED]
 ${escHtml(message)}
----</pre><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}</body></html>`;
+---</pre><div class="term-prompt">obdt:~$ <span class="term-cursor">█</span></div><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}</body></html>`;
 }
 
 // Every 404 page: a SIGNAL LOST surprise — the archive claims the reference
 // never existed. Partial-recovery fragment, search log, static sweep.
-function permaNotFoundPage() {
+function permaNotFoundPage(target) {
+  const promptLine = target ? `obdt:~$ cat ${escHtml(target)}` : 'obdt:~$';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -974,8 +987,7 @@ function permaNotFoundPage() {
 <div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
 <div><a class="ret" href="/">&larr; RETURN TO TERMINAL</a></div>
 </div></div></div>
-<div id="term-view" hidden><pre>OBDT-TERMINAL // SIGNAL DEGRADED
----
+<div id="term-view" hidden><pre>${promptLine}
 404 // SIGNAL LOST
 NO CARRIER
 QUERYING ARCHIVE ... NO MATCH
@@ -983,7 +995,7 @@ SWEEPING RELAY NODES ... NO CARRIER
 CHECKING PURGED RECORDS ... REDACTED
 PACKET LOSS ... 88% ... SIGNAL DEGRADING ...
 CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY.
----</pre><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}<script>
+---</pre><div class="term-prompt">obdt:~$ <span class="term-cursor">█</span></div><a class="term-back" href="/">← RETURN TO TERMINAL</a></div>${termViewSyncScript()}<script>
 (function(){
   // Signal bar: true random jitter, 1–69%, at random intervals.
   var bar = document.querySelector('.sigbar span');
@@ -1016,8 +1028,8 @@ function servePermalink(req, res, ref) {
   const user = session ? session.user : null;
   const result = resolveRef(ref, user);
   if (result.status !== 200) {
-    if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial));
-    return sendHtml(res, 404, permaNotFoundPage());
+    if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial, '/archive/' + ref));
+    return sendHtml(res, 404, permaNotFoundPage('/archive/' + ref));
   }
   const r = publicReport(result.report);
   const isSos = r.type === 'SOS';
@@ -1443,7 +1455,7 @@ function serveStatic(req, res) {
   }
   fs.readFile(file, (err, data) => {
     if (err) {
-      return sendHtml(res, 404, permaNotFoundPage());
+      return sendHtml(res, 404, permaNotFoundPage(p));
     }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',

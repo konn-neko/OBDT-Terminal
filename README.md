@@ -41,12 +41,18 @@ standard look, TERMINAL replaces the app with a pure command-line terminal
 in the site's cyan palette — no GUI, just a prompt (help, login, archive,
 read, new, copy, purge, personnel, roles, requests, lockdown, clear; `gui`
 returns to the GUI), and the saved reports list under the terminal view on
-entry. Saved reports (permalink pages) render as a terminal transcript
-when Terminal is selected. Pick with a click, G / T, or Enter for GUI; the choice is saved and
-applies to the main site. 403/404 pages keep their own themes in GUI mode
-and get a terminal view when Terminal is selected. Reduced-motion skips
-the BIOS. Each POST line types out character by character (30ms/char)
-behind a blinking block cursor, pauses a beat with the cursor blinking,
+entry. When Terminal is selected, the second boot sequence (gate, boot,
+startup) also fits the terminal: a plain `obdt:~$` prompt (Enter works,
+no click needed), the boot log and startup checks as plain text, no
+GUI frames, rings, or bars. Saved reports (permalink pages) render as a
+full-viewport terminal transcript — `obdt:~$ cat /archive/<REF>` and the
+report, ending on a fresh prompt with a blinking cursor — when Terminal
+is selected. Pick with a click, G / T, or Enter for GUI; the choice is
+saved and applies to the main site. 403/404 pages keep their own themes
+in GUI mode and get a terminal view when Terminal is selected (403: the
+denial as a failed `cat`; 404: the SIGNAL LOST log as a failed `cat`).
+Reduced-motion skips the BIOS. Each POST line types out character by
+character (30ms/char) behind a blinking block cursor, pauses a beat with
 then stamps a [OK] / [FAIL] / [WARN] indicator, with a longer gap before
 the next line. Standard POST on normal pages; pure corrupted BIOS on 404
 (fully opaque, so the page glitch can't show through; degrades in rare
