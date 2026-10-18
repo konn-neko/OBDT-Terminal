@@ -608,11 +608,10 @@ animation:crt-sweep 9s linear infinite}
 @keyframes content-in{from{opacity:0}to{opacity:1}}
 /* ---------- 404: black + corruption / signal degradation ---------- */
 body.lost{background:#000;background-image:none}
-body.lost .card{background:#000;border-color:#1a1a1a;animation:frame-corrupt 4.2s infinite steps(1)}
+body.lost .card{background:#000;border-color:#1a1a1a;animation:frame-corrupt 4.2s infinite steps(1),page-flicker 6s infinite steps(1)}
 @keyframes frame-corrupt{0%,91%,100%{border-color:#1a1a1a}92%{border-color:#000}94%{border-color:#3a3a3a}96%{border-color:#000}98%{border-color:#222}}
 body.lost .banner{border-color:#1a1a1a;background:#000;color:#5f87a8}
 body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
-body.lost{animation:page-flicker 6s infinite steps(1)}
 @keyframes page-flicker{0%,93%,100%{opacity:1}94%{opacity:.86}95%{opacity:1}97%{opacity:.92}}
 .glitch{position:relative}
 .glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;opacity:.7;pointer-events:none}
@@ -629,7 +628,7 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 @media (prefers-reduced-motion:reduce){
 .draw-svg rect,.card.screen-frame.draw::before,.card.screen-frame.draw::after,.draw .denied{animation:none!important}
 .draw-svg rect{stroke-dashoffset:0}
-.glitch::before,.glitch::after,.static::after,.rollbar,body.lost,body.lost .card{animation:none!important}
+.glitch::before,.glitch::after,.static::after,.rollbar,body.lost .card{animation:none!important}
 .glitch::before,.glitch::after{display:none}
 }
 /* ---------- BIOS page (POST screen on every page load) ---------- */
@@ -662,6 +661,9 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 /* 404: pure corrupted BIOS */
 #bios.bios-corrupt{animation:page-flicker 6s infinite steps(1)}
 #bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}
+/* 404 BIOS: rare degradation bursts — RGB split + garbled header, then quiet */
+#bios.bios-corrupt.bios-glitch .bios-head{text-shadow:3px 0 rgba(255,0,80,.8),-3px 0 rgba(0,255,255,.8);transform:translateX(1px)}
+#bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}
 /* ---------- terminal interface mode: pure terminal aesthetic ---------- */
 body.terminal-mode{--bg0:#000;--line:#145c2e;--line-bright:#1e9e4a;--cyan:#33ff66;--cyan-bright:#33ff66;--text:#33ff66;--muted:#1e9e4a;--faint:#145c2e;--green:#33ff66;--amber:#ffb000;--red:#ff4444;background:#000;background-image:none}
 body.terminal-mode *{box-shadow:none!important;text-shadow:none!important}
@@ -787,11 +789,25 @@ function biosOverlay(variant) {
   if (variant === 'corrupt') {
     var head = bios.querySelector('.bios-head');
     var orig = head.textContent;
-    setInterval(function(){
-      head.textContent = orig.split('').map(function(c){
-        return Math.random() < 0.15 ? '█▓▒░�'.charAt(Math.floor(Math.random() * 5)) : c;
-      }).join('');
-    }, 120);
+    // Rare degradation bursts: a short RGB-split + garble flicker, then
+    // a long quiet gap. Stops once the BIOS is removed.
+    function garbleBurst(){
+      if (!bios.parentNode) return;
+      var ticks = 3 + Math.floor(Math.random() * 3);
+      bios.classList.add('bios-glitch');
+      (function garbleTick(){
+        head.textContent = orig.split('').map(function(c){
+          return Math.random() < 0.25 ? '█▓▒░�'.charAt(Math.floor(Math.random() * 5)) : c;
+        }).join('');
+        if (--ticks > 0) { setTimeout(garbleTick, 100); }
+        else {
+          head.textContent = orig;
+          bios.classList.remove('bios-glitch');
+          if (bios.parentNode) setTimeout(garbleBurst, 2500 + Math.floor(Math.random() * 4000));
+        }
+      })();
+    }
+    setTimeout(garbleBurst, 1500 + Math.floor(Math.random() * 2000));
   }
   // Interface choice: buttons + G / T / Enter (Enter = GUI).
   var btns = bios.querySelectorAll('.bios-opt');

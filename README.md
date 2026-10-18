@@ -37,15 +37,18 @@ without High Command clearance opening a classified reference sees the
 
 Every page — the main terminal and every permalink — opens with a BIOS
 POST screen that runs slower, then offers SELECT INTERFACE: GUI keeps the
-standard look, TERMINAL switches the site to a pure terminal aesthetic
-(green-on-black, flat, no glow). Pick with a click, G / T, or Enter for
-GUI; the choice is saved and applies to the main site and normal permalink
-pages, while 403/404 pages keep their own themes. Reduced-motion skips
-the BIOS. Each POST line types out character by character (30ms/char)
+standard look, TERMINAL replaces the app with a pure command-line terminal
+— no GUI, just a prompt (help, login, archive, read, new, copy, purge,
+personnel, roles, requests, lockdown, clear; `gui` returns to the GUI).
+Pick with a click, G / T, or Enter for GUI; the choice is saved and
+applies to the main site and normal permalink pages (permalinks get the
+green terminal aesthetic), while 403/404 pages keep their own themes.
+Reduced-motion skips the BIOS. Each POST line types out character by character (30ms/char)
 behind a blinking block cursor, pauses a beat with the cursor blinking,
 then stamps a [OK] / [FAIL] / [WARN] indicator, with a longer gap before
-the next line. Standard POST on normal pages; pure corrupted BIOS on 404;
-on 403 it starts standard, then midway cycles to red and flags the
+the next line. Standard POST on normal pages; pure corrupted BIOS on 404
+(degrades in rare RGB-artifact bursts, and the page's own glitch no longer
+bleeds through the BIOS); on 403 it starts standard, then midway cycles to red and flags the
 terminal as HIGH COMMAND with clearance restricted.
 
 SOS reports are always filed as **declassified** (forced at save time) and

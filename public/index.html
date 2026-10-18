@@ -72,6 +72,17 @@ body{
 .bios-opt .bios-key{display:inline-block;border:1px solid currentColor;padding:0 5px;margin-right:8px;font-size:11px}
 .bios-hint{margin-top:12px;color:#808080;font-size:12px;letter-spacing:2px}
 
+/* ---------- pure terminal interface (terminal mode: replaces the GUI app) ---------- */
+#screen-terminal{align-items:stretch;justify-content:flex-start;background:#000;padding:0}
+#term-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:#33ff66}
+#term-scroll .t-dim{color:#1e9e4a}
+#term-scroll .t-red{color:#ff4444}
+#term-scroll .t-amber{color:#ffb000}
+#term-scroll .t-white{color:#e8ffe8}
+#term-line{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #145c2e}
+#term-prompt{color:#33ff66;white-space:nowrap}
+#term-input{flex:1;background:transparent;border:none;outline:none;color:#33ff66;font-family:var(--mono);font-size:14px}
+
 /* ---------- boot gate ---------- */
 #screen-boot-gate{cursor:pointer;user-select:none;text-align:center}
 .gate-frame{border:1px solid var(--line-bright);padding:48px 64px;background:rgba(6,18,31,.85);
@@ -597,6 +608,12 @@ nav.tabs button.active{background:rgba(70,200,255,.10)}
   </main>
 </div>
 
+<!-- PURE TERMINAL INTERFACE (terminal mode): replaces the GUI app -->
+<div id="screen-terminal" class="screen" hidden>
+  <div id="term-scroll"></div>
+  <div id="term-line"><span id="term-prompt">guest@obdt:~$ </span><input id="term-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+</div>
+
 <div id="toast"></div>
 <script>
 /* ================= helpers ================= */
@@ -797,7 +814,7 @@ const tierClassifications = () => isGuestView() ? ['declassified'] : (isHighComm
 
 /* ================= screens ================= */
 function show(id) {
-  ['screen-boot-gate','screen-boot','screen-startup','screen-access','screen-app'].forEach((s) => {
+  ['screen-boot-gate','screen-boot','screen-startup','screen-access','screen-app','screen-terminal'].forEach((s) => {
     const el = $(s);
     if (s === id) {
       if (el.hidden) {
@@ -952,7 +969,10 @@ function runStartup() {
     setTimeout(step, 240 + Math.random() * 280);
   })();
 }
-function finishStartup() { show('screen-access'); $('login-user').focus(); }
+function finishStartup() {
+  if (document.body.classList.contains('terminal-mode')) { startTerminal(); return; }
+  show('screen-access'); $('login-user').focus();
+}
 
 /* ================= auth ================= */
 function setErr(id, msg) { $(id).textContent = msg || ''; }
@@ -1675,18 +1695,431 @@ function wire() {
   });
 }
 
+/* ================= pure terminal interface ================= */
+/* In terminal mode the GUI app is replaced by a real command-line shell.
+   Same API + helpers as the GUI (api, can, REPORT_TYPES, discordText…). */
+const TERM = { hist: [], hi: -1, busy: false, awaiting: null };
+
+function termPrint(text, cls) {
+  const box = $('term-scroll');
+  String(text == null ? '' : text).split('\n').forEach((line) => {
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = line === '' ? '\u00a0' : line;
+    box.appendChild(d);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+function termClear() { $('term-scroll').innerHTML = ''; }
+function termSetPrompt(t) { $('term-prompt').textContent = t; }
+function termCmdPrompt() { return ((S.user && S.user.username) || 'guest') + '@obdt:~$ '; }
+function termFocus() { const i = $('term-input'); if (i) i.focus(); }
+function termAsk(prompt, handler, masked) {
+  TERM.awaiting = { prompt, handler, masked: !!masked };
+  termSetPrompt(prompt);
+  $('term-input').type = masked ? 'password' : 'text';
+  termFocus();
+}
+function termUnask() {
+  TERM.awaiting = null;
+  $('term-input').type = 'text';
+  termSetPrompt(termCmdPrompt());
+}
+
+function termSubmit() {
+  const input = $('term-input');
+  const line = input.value;
+  input.value = '';
+  const prompt = $('term-prompt').textContent;
+  if (TERM.awaiting) {
+    const aw = TERM.awaiting;
+    termUnask();
+    termPrint(prompt + (aw.masked ? '********' : line));
+    try { aw.handler(line); } catch (e) { termPrint('ERROR: ' + e.message, 't-red'); }
+    termFocus();
+    return;
+  }
+  termPrint(prompt + line);
+  if (!line.trim()) { termFocus(); return; }
+  if (TERM.busy) { termPrint('busy — one moment.', 't-dim'); termFocus(); return; }
+  TERM.hist.push(line);
+  TERM.hi = TERM.hist.length;
+  TERM.busy = true;
+  (async () => {
+    try { await termRun(line); }
+    catch (e) { termPrint('ERROR: ' + e.message, 't-red'); }
+    finally { TERM.busy = false; termFocus(); }
+  })();
+}
+
+function termInputKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); termSubmit(); }
+  else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !TERM.awaiting) {
+    e.preventDefault();
+    if (!TERM.hist.length) return;
+    if (e.key === 'ArrowUp') { if (TERM.hi > 0) TERM.hi--; }
+    else { TERM.hi = Math.min(TERM.hi + 1, TERM.hist.length); }
+    $('term-input').value = TERM.hi < TERM.hist.length ? TERM.hist[TERM.hi] : '';
+  }
+}
+$('term-input').addEventListener('keydown', termInputKey);
+$('screen-terminal').addEventListener('click', () => {
+  if (!window.getSelection().toString()) termFocus();
+});
+
+function startTerminal() {
+  show('screen-terminal');
+  const u = S.pendingSessionUser || null;
+  if (u) { S.user = u; S.guest = false; }
+  else { S.user = null; S.guest = true; }
+  termClear();
+  termPrint('THE OBSIDIAN DIRECTORATE — TERMINAL INTERFACE', 't-white');
+  termPrint('OBDT-TERMINAL v2.6.1 // ' + (u ? ('OPERATOR: ' + u.username) : 'GUEST ACCESS — declassified only'), 't-dim');
+  termPrint("Type 'help' for commands. Type 'gui' to return to the GUI interface.", 't-dim');
+  termPrint('');
+  termSetPrompt(termCmdPrompt());
+  termFocus();
+}
+
+function termHelp() {
+  termPrint('OBDT-TERMINAL — COMMANDS', 't-white');
+  [
+    ['help', 'this list'],
+    ['whoami', 'show current operator'],
+    ['login [callsign]', 'sign in (prompts for passphrase)'],
+    ['logout', 'sign out'],
+    ['request', 'request an account'],
+    ['archive [query]', 'list transmissions (optional search)'],
+    ['read <ref>', 'show a transmission in full'],
+    ['new', 'file a new transmission (guided)'],
+    ['copy <ref> [discord|inara]', 'print export text for a transmission'],
+    ['purge <ref>', 'purge a transmission (asks for YES)'],
+    ['personnel', 'list operators (needs manage_users)'],
+    ['roles', 'list roles (needs manage_roles)'],
+    ['requests', 'list pending account requests (High Command)'],
+    ['approve <id>', 'approve an account request (High Command)'],
+    ['deny <id>', 'deny an account request (High Command)'],
+    ['lockdown [on|off]', 'show / set squadron lockdown (High Command)'],
+    ['clear', 'clear the screen'],
+    ['gui', 'return to the GUI interface'],
+  ].forEach(([c, d]) => termPrint('  ' + c.padEnd(26) + d));
+}
+
+async function termRun(line) {
+  const parts = line.trim().split(/\s+/);
+  const cmd = (parts[0] || '').toLowerCase();
+  const args = parts.slice(1);
+  const rest = args.join(' ');
+  switch (cmd) {
+    case 'help': termHelp(); return;
+    case 'whoami': case 'me':
+      if (S.user) termPrint(S.user.username + ' — ' + (S.user.roleName || '') + ' — ' + (S.user.tier === 'high_command' ? 'HIGH COMMAND' : 'MEMBER'));
+      else termPrint('GUEST — declassified only. type `login` to sign in.');
+      return;
+    case 'login': termLogin(args[0]); return;
+    case 'logout': await termLogout(); return;
+    case 'request': termRequestWizard(); return;
+    case 'archive': await termArchive(rest); return;
+    case 'read': await termRead(rest); return;
+    case 'new': termWizard(); return;
+    case 'copy': await termCopy(args); return;
+    case 'purge': await termPurge(rest); return;
+    case 'personnel': await termPersonnel(); return;
+    case 'roles': await termRoles(); return;
+    case 'requests': await termRequests(); return;
+    case 'approve': await termRequestDecision(args[0], 'approve'); return;
+    case 'deny': await termRequestDecision(args[0], 'deny'); return;
+    case 'lockdown': await termLockdown(args[0]); return;
+    case 'clear': termClear(); return;
+    case 'gui':
+      try { localStorage.setItem('obdt-interface', 'gui'); } catch (e) {}
+      termPrint('Switching to GUI interface…', 't-dim');
+      setTimeout(() => location.reload(), 400);
+      return;
+    default:
+      termPrint("unknown command '" + cmd + "'. type 'help'.", 't-red');
+  }
+}
+
+function termLogin(username) {
+  if (S.user) { termPrint('already signed in as ' + S.user.username + '. logout first.', 't-amber'); return; }
+  if (username) {
+    termAsk('passphrase: ', async (pw) => { await doTermLogin(username, pw); }, true);
+  } else {
+    termAsk('callsign: ', (u) => {
+      if (!u.trim()) { termPrint('callsign required.', 't-red'); termLogin(); return; }
+      termAsk('passphrase: ', async (pw) => { await doTermLogin(u.trim(), pw); }, true);
+    });
+  }
+}
+async function doTermLogin(username, password) {
+  try {
+    const { user } = await api('POST', '/api/login', { username, password });
+    S.user = user; S.guest = false;
+    termPrint('AUTHENTICATED — welcome, ' + user.username + '.', 't-white');
+    termSetPrompt(termCmdPrompt());
+  } catch (e) { termPrint('LOGIN FAILED: ' + e.message, 't-red'); }
+}
+async function termLogout() {
+  try { await api('POST', '/api/logout'); } catch {}
+  S.user = null; S.guest = true;
+  termPrint('Signed out. GUEST access — declassified only.');
+  termSetPrompt(termCmdPrompt());
+}
+
+function termRequestWizard() {
+  termPrint('--- ACCOUNT REQUEST ---', 't-white');
+  termAsk('callsign: ', (v) => {
+    if (!v.trim()) { termPrint('callsign required.', 't-red'); return termRequestWizard(); }
+    const data = { username: v.trim() };
+    termAsk('cmdr name (optional): ', (v2) => {
+      data.cmdr = v2.trim();
+      termAsk('passphrase (min 8 chars): ', (pw) => {
+        if (pw.length < 8) { termPrint('passphrase must be at least 8 characters.', 't-red'); return termRequestWizard(); }
+        data.password = pw;
+        termAsk('note for High Command (optional): ', async (note) => {
+          data.note = note.trim();
+          try {
+            await api('POST', '/api/requests', data);
+            termPrint('REQUEST TRANSMITTED — HIGH COMMAND WILL REVIEW.', 't-white');
+          } catch (e) { termPrint('REQUEST FAILED: ' + e.message, 't-red'); }
+        });
+      }, true);
+    });
+  });
+}
+
+async function termFindReport(ref) {
+  if (!ref) { termPrint('usage: read <ref>', 't-amber'); return null; }
+  const path = isGuestView() ? '/api/declassified' : '/api/reports';
+  const { reports } = await api('GET', path);
+  S.reports = reports;
+  const q = ref.toLowerCase();
+  const matches = reports.filter((r) => String(r.ref || '').toLowerCase().includes(q));
+  if (!matches.length) { termPrint('no transmission matches ' + ref, 't-red'); return null; }
+  if (matches.length > 1) {
+    termPrint('multiple matches — be more specific:', 't-amber');
+    matches.slice(0, 10).forEach((r) => termPrint('  ' + r.ref + ' — ' + r.title));
+    return null;
+  }
+  return matches[0];
+}
+
+async function termArchive(query) {
+  const path = isGuestView() ? '/api/declassified' : '/api/reports';
+  const { reports } = await api('GET', path);
+  S.reports = reports;
+  let list = reports;
+  if (query) {
+    const q = query.toLowerCase();
+    list = reports.filter((r) => [r.ref, r.title, r.reportingCmdr, r.body, r.type]
+      .some((f) => String(f || '').toLowerCase().includes(q)));
+  }
+  if (!list.length) { termPrint('// NO TRANSMISSIONS ON RECORD'); return; }
+  termPrint('REF / CLASS / TYPE — TITLE (' + list.length + ')', 't-dim');
+  list.slice(0, 100).forEach((r) => {
+    termPrint((r.ref || '—') + '  [' + (r.classification || '').toUpperCase() + '] ' + r.type + ' — ' + r.title);
+  });
+  if (list.length > 100) termPrint('…and ' + (list.length - 100) + ' more.');
+}
+
+async function termRead(ref) {
+  const m = await termFindReport(ref);
+  if (!m) return;
+  let r = m;
+  try {
+    const fresh = await api('GET', '/api/reports/' + m.id);
+    r = fresh.report || m;
+  } catch { /* use the cached copy */ }
+  termPrint('REF: ' + (r.ref || '—'), 't-white');
+  termPrint('CLASSIFICATION: ' + (r.classification || '').toUpperCase());
+  termPrint('TITLE: ' + r.title);
+  termPrint('REPORT TYPE: ' + r.type + (r.subtype ? ' / ' + r.subtype : ''));
+  termPrint('FILED BY: ' + (r.reportingCmdr || '—') + (r.signingCmdr ? ' — SIGNED: ' + r.signingCmdr : ''));
+  if (r.sector) termPrint('SECTOR: ' + r.sector);
+  if (r.directedTo) termPrint('DIRECTED TO: ' + r.directedTo);
+  if (r.recipient) termPrint('RECIPIENT PARTY: ' + r.recipient);
+  termPrint('FILED: ' + fmtExportDate(r.createdAt));
+  termPrint('---');
+  termPrint(r.body || '');
+  termPrint('---');
+  termPrint('PERMALINK: /archive/' + (r.ref || ''), 't-dim');
+}
+
+async function termCopy(args) {
+  const m = await termFindReport(args[0]);
+  if (!m) return;
+  const fmt = (args[1] || 'discord').toLowerCase();
+  termPrint(fmt === 'inara' ? inaraPlain(m) : discordText(m));
+}
+
+async function termPurge(ref) {
+  const m = await termFindReport(ref);
+  if (!m) return;
+  termPrint('PURGE ' + m.ref + ' — ' + m.title, 't-red');
+  termPrint('This cannot be undone. Type YES to confirm:', 't-amber');
+  termAsk('confirm: ', async (v) => {
+    if (v.trim() !== 'YES') { termPrint('purge cancelled.'); return; }
+    try {
+      await api('DELETE', '/api/reports/' + m.id);
+      termPrint('PURGED ' + m.ref + '.', 't-white');
+    } catch (e) { termPrint('PURGE FAILED: ' + e.message, 't-red'); }
+  });
+}
+
+async function termPersonnel() {
+  const { users } = await api('GET', '/api/users');
+  let roles = {};
+  try {
+    const r = await api('GET', '/api/roles');
+    (r.roles || []).forEach((x) => { roles[x.id] = x.name; });
+  } catch { /* role names optional */ }
+  if (!users.length) { termPrint('// NO PERSONNEL ON RECORD'); return; }
+  users.forEach((u) => termPrint(
+    u.username + ' — ' + (u.cmdr || '—') + ' — ' + (roles[u.roleId] || u.roleId || '') + ' — ' + (u.tier || '').toUpperCase()));
+}
+
+async function termRoles() {
+  const { roles } = await api('GET', '/api/roles');
+  if (!roles.length) { termPrint('// NO ROLES ON RECORD'); return; }
+  roles.forEach((r) => {
+    const perms = r.permissions ? Object.keys(r.permissions).filter((p) => r.permissions[p]).join(', ') : '';
+    termPrint(r.name + ' (' + (r.tier || '') + ') — ' + (perms || 'no permissions'));
+  });
+}
+
+async function termRequests() {
+  const { requests } = await api('GET', '/api/requests');
+  if (!requests || !requests.length) { termPrint('// NO PENDING REQUESTS'); return; }
+  requests.forEach((r) => termPrint(r.id + ' — ' + r.username + ' (' + (r.cmdr || '—') + ') — ' + (r.note || '—')));
+}
+
+async function termRequestDecision(id, action) {
+  if (!id) { termPrint('usage: ' + action + ' <id>', 't-amber'); return; }
+  await api('POST', '/api/requests/' + id + '/' + action);
+  termPrint('Request ' + action + 'd.', 't-white');
+}
+
+async function termLockdown(arg) {
+  if (!arg) {
+    const { lockdown } = await api('GET', '/api/lockdown');
+    termPrint('SQUADRON LOCKDOWN: ' + (lockdown ? 'ACTIVE' : 'INACTIVE'));
+    return;
+  }
+  const want = arg.toLowerCase();
+  if (want !== 'on' && want !== 'off') { termPrint('usage: lockdown [on|off]', 't-amber'); return; }
+  await api('POST', '/api/lockdown', { enabled: want === 'on' });
+  S.lockdown = want === 'on';
+  termPrint('SQUADRON LOCKDOWN ' + (want === 'on' ? 'ACTIVATED' : 'LIFTED') + '.', 't-white');
+}
+
+function termWizard() {
+  if (!can('create_report')) { termPrint('you do not have clearance to file transmissions.', 't-red'); return; }
+  const data = { classification: 'declassified', type: '', subtype: '' };
+  const steps = [
+    { key: 'reportingCmdr', prompt: 'reporting commander: ', req: true },
+    { key: 'signingCmdr', prompt: 'signing commander (optional): ' },
+    { key: 'title', prompt: 'title: ', req: true },
+    { key: 'classification', prompt: 'classification [declassified/restricted/classified] (declassified): ', parse: parseCls },
+    { key: 'type', prompt: 'type [SOS / Intelligence Report / Diplomatic Communique / Major Order]: ', parse: parseType },
+    { key: 'subtype', prompt: 'subtype: ', when: (d) => subtypesFor(d.type).length > 0, parse: parseSubtype },
+    { key: 'sector', prompt: 'sector (optional): ' },
+    { key: 'directedTo', prompt: 'directed to (optional): ' },
+    { key: 'recipient', prompt: 'recipient party (optional): ' },
+  ];
+  let si = 0;
+  termPrint('--- NEW TRANSMISSION ---', 't-white');
+  next();
+  function next() {
+    if (si >= steps.length) return askBody();
+    const st = steps[si];
+    if (st.when && !st.when(data)) { si++; return next(); }
+    let p = st.prompt;
+    if (st.key === 'subtype') p = 'subtype [' + subtypesFor(data.type).join(' / ') + ']: ';
+    termAsk(p, (v) => {
+      if (st.parse) {
+        const r = st.parse(v, data);
+        if (r.error) { termPrint(r.error, 't-red'); return next(); }
+        data[st.key] = r.value;
+      } else {
+        if (st.req && !v.trim()) { termPrint('required.', 't-red'); return next(); }
+        data[st.key] = v.trim();
+      }
+      si++;
+      next();
+    });
+  }
+  function askBody() {
+    termPrint('body — end with a single . on its own line:', 't-dim');
+    const lines = [];
+    const bodyLoop = () => termAsk('> ', (v) => {
+      if (v === '.') {
+        const body = lines.join('\n');
+        if (!body.trim()) { termPrint('body required.', 't-red'); return askBody(); }
+        data.body = body;
+        return confirmFile();
+      }
+      lines.push(v);
+      bodyLoop();
+    });
+    bodyLoop();
+  }
+  function confirmFile() {
+    termPrint('--- REVIEW ---', 't-white');
+    termPrint('TITLE: ' + data.title);
+    termPrint('TYPE: ' + data.type + (data.subtype ? ' / ' + data.subtype : ''));
+    termPrint('CLASSIFICATION: ' + data.classification.toUpperCase());
+    termAsk('file this transmission? [y/n]: ', async (v) => {
+      const a = v.trim().toLowerCase();
+      if (a === 'y' || a === 'yes') {
+        try {
+          const { report } = await api('POST', '/api/reports', data);
+          termPrint('TRANSMISSION FILED — REF: ' + (report && report.ref ? report.ref : '—'), 't-white');
+        } catch (e) { termPrint('FILING FAILED: ' + e.message, 't-red'); }
+      } else if (a === 'n' || a === 'no') {
+        termPrint('cancelled.');
+      } else {
+        termPrint('answer y or n.', 't-amber');
+        confirmFile();
+      }
+    });
+  }
+  function parseCls(v) {
+    const c = v.trim().toLowerCase();
+    if (!c) return { value: 'declassified' };
+    if (CLASSIFICATIONS.includes(c)) return { value: c };
+    return { error: 'classification must be declassified, restricted, or classified.' };
+  }
+  function parseType(v) {
+    const t = v.trim().toLowerCase();
+    const hit = REPORT_TYPES.find((x) => x.toLowerCase() === t);
+    if (!hit) return { error: 'type must be one of: ' + REPORT_TYPES.join(', ') + '.' };
+    if (hit === 'SOS') data.classification = 'declassified';
+    return { value: hit };
+  }
+  function parseSubtype(v, d) {
+    const opts = subtypesFor(d.type);
+    const hit = opts.find((x) => x.toLowerCase() === v.trim().toLowerCase());
+    if (!hit) return { error: 'subtype must be one of: ' + opts.join(', ') + '.' };
+    return { value: hit };
+  }
+}
+
 /* ================= init ================= */
 (async function init() {
   wire();
   await refreshLockdown();
   let sessionUser = null;
   try { ({ user: sessionUser } = await api('GET', '/api/me')); } catch { /* no live session */ }
+  S.pendingSessionUser = sessionUser;
   // The gate requires one click; a live session then resumes straight into the app.
   $('screen-boot-gate').addEventListener('click', async () => {
     try { const { lockdown } = await api('GET', '/api/lockdown'); S.lockdown = !!lockdown; }
     catch { S.lockdown = false; }
     runBoot();
-    if (sessionUser) {
+    // GUI mode: a live session resumes straight into the app. Terminal
+    // mode: startTerminal() (via finishStartup) handles the session.
+    if (sessionUser && !document.body.classList.contains('terminal-mode')) {
       const iv = setInterval(() => {
         if (!$('screen-access').hidden) {
           clearInterval(iv);
@@ -1797,11 +2230,25 @@ function wire() {
   if (variant === 'corrupt') {
     var head = bios.querySelector('.bios-head');
     var orig = head.textContent;
-    setInterval(function(){
-      head.textContent = orig.split('').map(function(c){
-        return Math.random() < 0.15 ? '█▓▒░�'.charAt(Math.floor(Math.random() * 5)) : c;
-      }).join('');
-    }, 120);
+    // Rare degradation bursts: a short RGB-split + garble flicker, then
+    // a long quiet gap. Stops once the BIOS is removed.
+    function garbleBurst(){
+      if (!bios.parentNode) return;
+      var ticks = 3 + Math.floor(Math.random() * 3);
+      bios.classList.add('bios-glitch');
+      (function garbleTick(){
+        head.textContent = orig.split('').map(function(c){
+          return Math.random() < 0.25 ? '█▓▒░�'.charAt(Math.floor(Math.random() * 5)) : c;
+        }).join('');
+        if (--ticks > 0) { setTimeout(garbleTick, 100); }
+        else {
+          head.textContent = orig;
+          bios.classList.remove('bios-glitch');
+          if (bios.parentNode) setTimeout(garbleBurst, 2500 + Math.floor(Math.random() * 4000));
+        }
+      })();
+    }
+    setTimeout(garbleBurst, 1500 + Math.floor(Math.random() * 2000));
   }
   // Interface choice: buttons + G / T / Enter (Enter = GUI).
   var btns = bios.querySelectorAll('.bios-opt');
