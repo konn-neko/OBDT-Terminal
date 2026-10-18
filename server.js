@@ -641,7 +641,8 @@ body.lost{animation:page-flicker 6s infinite steps(1)}
 .bios-lines{min-height:170px;white-space:pre-wrap}
 .bios-lines .ok{color:#4fe08a}
 .bios-lines .fail{color:#ff5470}
-.bios-foot{margin-top:18px;color:#fff}
+.bios-foot{margin-top:18px;color:#fff;opacity:0;transition:opacity .3s}
+#bios.bios-ready .bios-foot{opacity:1}
 .bios-cursor{display:inline-block;width:9px;height:15px;background:#c0c0c0;vertical-align:-2px;animation:blink 1s steps(2) infinite}
 /* 403: midway the BIOS cycles to red — High Command terminal */
 #bios.bios-red{background:#12040a;color:#ffb3c0}
@@ -662,20 +663,21 @@ function biosOverlay(variant) {
 <div class="bios-head">OBSIDIAN DIRECTORATE BIOS  v2.6.1</div>
 <div class="bios-sub">(C) 3302-3312, OBSIDIAN DIRECTORATE SYSTEMS</div>
 <div class="bios-lines"></div>
-<div class="bios-foot">PRESS ANY KEY TO BOOT <span class="bios-cursor"></span></div>
+<div class="bios-foot">PRESS ANY KEY TO ENTER <span class="bios-cursor"></span></div>
 </div>
 </div>
 <script>
 (function(){
   var bios = document.getElementById('bios');
   if (!bios) return;
+  var ready = false;
   function dismiss(){
-    if (bios.dataset.done) return;
+    if (!ready || bios.dataset.done) return;
     bios.dataset.done = '1';
     bios.classList.add('bios-done');
     setTimeout(function(){ if (bios.parentNode) bios.parentNode.removeChild(bios); }, 450);
   }
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { dismiss(); return; }
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { ready = true; dismiss(); return; }
   var variant = bios.getAttribute('data-variant') || 'standard';
   var linesEl = bios.querySelector('.bios-lines');
   var lines;
@@ -707,13 +709,13 @@ function biosOverlay(variant) {
   }
   var i = 0;
   function showNext(){
-    if (i >= lines.length) { setTimeout(dismiss, 500); return; }
+    if (i >= lines.length) { setTimeout(function(){ ready = true; bios.classList.add('bios-ready'); }, 600); return; }
     var div = document.createElement('div');
     div.innerHTML = lines[i];
     linesEl.appendChild(div);
     if (variant === 'highcommand' && i === 2) bios.classList.add('bios-red');
     i++;
-    setTimeout(showNext, 220);
+    setTimeout(showNext, 500);
   }
   if (variant === 'corrupt') {
     var head = bios.querySelector('.bios-head');
@@ -726,7 +728,7 @@ function biosOverlay(variant) {
   }
   bios.addEventListener('click', dismiss);
   document.addEventListener('keydown', dismiss);
-  showNext();
+  setTimeout(showNext, 600);
 })();
 </script>`;
 }
