@@ -663,13 +663,7 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
 #bios.bios-corrupt .bios-head{color:#ff5470;text-shadow:2px 0 rgba(70,200,255,.7),-2px 0 rgba(255,84,112,.7)}
 /* 404 BIOS: rare degradation bursts — RGB split + garbled header, then quiet */
 #bios.bios-corrupt.bios-glitch .bios-head{text-shadow:3px 0 rgba(255,0,80,.8),-3px 0 rgba(0,255,255,.8);transform:translateX(1px)}
-#bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}
-/* 404: known transmissions the viewer can read */
-.known{color:var(--muted);font-size:12px;letter-spacing:2px;margin:18px 0 8px}
-.known-list a{display:block;color:var(--cyan);text-decoration:none;font-size:13px;line-height:1.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.known-list a:hover{color:var(--cyan-bright);text-decoration:underline}
-.known-none{color:var(--faint);font-size:13px}
-.known-more{color:var(--faint);font-size:12px;margin-top:6px}`;
+#bios.bios-corrupt.bios-glitch .bios-lines{text-shadow:2px 0 rgba(255,0,80,.5),-2px 0 rgba(0,255,255,.5)}`;
 
 // BIOS page overlay: a POST-style boot screen shown on every page load.
 // Variants: 'standard' (normal pages), 'corrupt' (404: pure corrupted BIOS),
@@ -875,19 +869,7 @@ function permaDeniedPage(message) {
 
 // Every 404 page: a SIGNAL LOST surprise — the archive claims the reference
 // never existed. Partial-recovery fragment, search log, static sweep.
-function permaNotFoundPage(user) {
-  // Saved transmissions the viewer can read, newest first — so a lost
-  // reference still leads somewhere.
-  const visible = (db.reports || [])
-    .filter((r) => canSeeReport(user, r))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const shown = visible.slice(0, 25);
-  const knownHtml = shown.length
-    ? `<div class="known-list">${shown.map((r) =>
-        `<a href="/archive/${escHtml(r.ref)}">${escHtml(r.ref)} — ${escHtml(r.title)}</a>`).join('')}</div>`
-      + (visible.length > shown.length
-        ? `<div class="known-more">…and ${visible.length - shown.length} more in the archive.</div>` : '')
-    : `<div class="known-none">// NO TRANSMISSIONS ON RECORD</div>`;
+function permaNotFoundPage() {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta property="og:type" content="website">
@@ -912,8 +894,6 @@ function permaNotFoundPage(user) {
 <div class="logline">&gt; CHECKING PURGED RECORDS ... <b>REDACTED</b></div>
 <div class="logline">&gt; PACKET LOSS ... <b>88%</b> ... SIGNAL DEGRADING ...</div>
 <div class="logline">&gt; CONCLUSION: THIS REFERENCE NEVER EXISTED. PROBABLY. <span class="cursor"></span></div>
-<div class="known">// KNOWN TRANSMISSIONS //</div>
-${knownHtml}
 <div style="color:var(--muted);font-size:13px;margin:18px 0 6px">SIGNAL <span id="sigval">12%</span></div>
 <div class="sigbar"><span></span></div>
 <div style="color:var(--muted);font-size:13px;margin:0 0 24px">If you followed a link here, it was purged, misfiled, or intercepted by persons unknown.<br>The Directorate denies everything.</div>
@@ -952,7 +932,7 @@ function servePermalink(req, res, ref) {
   const result = resolveRef(ref, user);
   if (result.status !== 200) {
     if (result.status === 403) return sendHtml(res, 403, permaDeniedPage(result.denial));
-    return sendHtml(res, 404, permaNotFoundPage(user));
+    return sendHtml(res, 404, permaNotFoundPage());
   }
   const r = publicReport(result.report);
   const isSos = r.type === 'SOS';
@@ -1377,8 +1357,7 @@ function serveStatic(req, res) {
   }
   fs.readFile(file, (err, data) => {
     if (err) {
-      const session = getSession(req);
-      return sendHtml(res, 404, permaNotFoundPage(session ? session.user : null));
+      return sendHtml(res, 404, permaNotFoundPage());
     }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
