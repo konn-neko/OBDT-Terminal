@@ -669,6 +669,9 @@ body.lost .screen-head{border-color:#1a1a1a;color:#3a4757}
    own theme via the CSS variables (403 crimson via sos-theme, 404 black,
    SOS reports crimson via sos-theme). */
 #term-view{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;background:var(--bg0);color:var(--cyan);font-family:var(--mono)}
+/* Without this, #term-view{display:flex} beats the hidden attribute's
+   built-in display:none, so the terminal view would show in GUI mode too. */
+#term-view[hidden]{display:none !important}
 body.sos-theme #term-view{background:#12040a}
 body.lost #term-view{background:#000}
 .term-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
